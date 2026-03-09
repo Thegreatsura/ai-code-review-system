@@ -45,7 +45,7 @@ pnpm dev --filter=web
 pnpm dev --filter=ai-review-worker
 ```
 
-```
+```mermaid
 flowchart TD
 
     %% ---------- Frontend ----------
