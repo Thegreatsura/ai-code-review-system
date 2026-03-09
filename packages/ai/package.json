@@ -1,5 +1,5 @@
 {
-  "name": "@repo/logger",
+  "name": "@repo/ai",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,6 +11,10 @@
   "license": "ISC",
   "packageManager": "pnpm@10.17.1",
   "dependencies": {
-    "pino": "^10.3.1"
+    "@ai-sdk/google": "^3.0.43",
+    "ai": "^6.0.116"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }

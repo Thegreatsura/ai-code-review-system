@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --output-logs=full",
+    "infra": "docker compose up -d",
     "build": "turbo run build"
   },
   "keywords": [],
