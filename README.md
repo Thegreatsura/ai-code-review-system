@@ -48,65 +48,56 @@ pnpm dev --filter=ai-review-worker
 ```mermaid
 flowchart TD
 
-    %% ---------- Frontend ----------
-    A[User] --> B[apps/web Next.js Frontend]
+    %% Frontend
+    A[User] --> B[apps/web Next.js]
 
-    B --> C[Connect GitHub Repository]
+    %% Repo connection
+    B --> C[Connect GitHub Repo]
 
-    %% ---------- Repo Setup ----------
-    C --> D[services/repo-indexer]
+    C --> D[Store Repo Info]
+    D --> DB[(Postgres)]
 
-    D --> E[Clone Repository]
-    E --> F[Chunk Code Files]
-    F --> G[Generate Embeddings using packages/ai]
-    G --> H[Pinecone Vector Database]
+    C --> E[Attach GitHub Webhook]
 
-    C --> I[Attach GitHub Webhook]
-    I --> J[GitHub Repository]
+    %% Repo indexing
+    C --> F[services/repo-indexer]
 
-    %% ---------- PR Event ----------
-    J --> K[User Creates Pull Request]
+    F --> G[Clone Repository]
+    G --> H[Chunk Code]
+    H --> I[Generate Embeddings]
+    I --> J[(Pinecone Vector DB)]
 
-    K --> L[services/webhook-service]
+    %% PR event
+    K[User Creates PR] --> L[GitHub Webhook]
 
-    L --> M[Kafka Topic: pr-events]
+    L --> M[services/webhook-service]
 
-    %% ---------- PR Processing ----------
-    M --> N[services/pr-processor]
+    M --> N[Kafka: pr-events]
 
-    N --> O[Fetch PR Diff from GitHub API]
+    %% PR processing
+    N --> O[services/pr-processor]
 
-    O --> P[Kafka Topic: review-jobs]
+    O --> P[Fetch PR Diff from GitHub]
 
-    %% ---------- AI Review ----------
-    P --> Q[services/ai-review-worker]
+    P --> Q[Kafka: review-jobs]
 
-    Q --> R[Retrieve Context from Pinecone]
+    %% AI review worker
+    Q --> R[services/ai-review-worker]
 
-    R --> S[Gemini Review via packages/ai]
+    R --> S[Check Redis Cache]
 
-    S --> T[Kafka Topic: review-results]
+    S -->|Cache Hit| T[Return Cached Review]
 
-    %% ---------- Comment Posting ----------
-    T --> U[services/github-comment-service]
+    S -->|Cache Miss| U[Retrieve Context from Pinecone]
 
-    U --> V[Post Comment on GitHub PR]
+    U --> V[Gemini AI Review]
 
+    V --> W[Store Review in Redis]
 
-    %% ---------- Shared Packages ----------
-    subgraph Shared_Packages
-        W[packages/ai]
-        X[packages/kafka]
-        Y[packages/redis]
-        Z[packages/logger]
-        AA[packages/config]
-        AB[packages/types]
-    end
+    W --> X[Kafka: review-results]
 
-    %% ---------- Infra ----------
-    subgraph Infrastructure
-        AC[Kafka]
-        AD[Redis]
-        AE[Pinecone]
-    end
+    %% Comment service
+    X --> Y[services/github-comment-service]
+
+    Y --> Z[Post Comment on PR]
 ```
