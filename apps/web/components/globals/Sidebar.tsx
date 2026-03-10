@@ -12,22 +12,29 @@ import {
 	UserCog,
 	Zap,
 } from "lucide-react";
-
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUIStore } from "@/lib/store/ui-store";
 
 const navItems = [
-	{ icon: GitBranch, label: "Repositories", active: true },
-	{ icon: LayoutDashboard, label: "Dashboard" },
-	{ icon: Zap, label: "Integrations" },
-	{ icon: Clock, label: "Reports" },
-	{ icon: BookOpen, label: "Learnings" },
-	{ icon: ListChecks, label: "Issue Planner", badge: "Beta" },
-	{ icon: Settings, label: "Configuration" },
-	{ icon: UserCog, label: "Account Settings" },
+	{ icon: GitBranch, label: "Repositories", route: "repositories" },
+	{ icon: LayoutDashboard, label: "Dashboard", route: "dashboard" },
+	{ icon: Zap, label: "Integrations", route: "integrations" },
+	{ icon: Clock, label: "Reports", route: "reports" },
+	{ icon: BookOpen, label: "Learnings", route: "learnings" },
+	{
+		icon: ListChecks,
+		label: "Issue Planner",
+		route: "issue-planner",
+		badge: "Beta",
+	},
+	{ icon: Settings, label: "Configuration", route: "configuration" },
+	{ icon: UserCog, label: "Account Settings", route: "settings" },
 ];
 
 export function Sidebar() {
 	const { sidebarOpen } = useUIStore();
+	const pathname = usePathname();
 
 	if (!sidebarOpen) return null;
 
@@ -79,46 +86,38 @@ export function Sidebar() {
 			</div>
 
 			<nav className="flex-1 px-2 py-2 overflow-y-auto">
-				{navItems.map(({ icon: Icon, label, active, badge }) => (
-					<button
-						key={label}
-						type="button"
-						className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm mb-0.5 transition-all"
-						style={{
-							background: active ? "#1a1a1f" : "transparent",
-							color: active ? "#e8e8ea" : "#808088",
-							fontWeight: active ? 500 : 400,
-							border: "none",
-							cursor: "pointer",
-							textAlign: "left",
-						}}
-						onMouseEnter={(e) => {
-							if (!active) e.currentTarget.style.background = "#16161a";
-							e.currentTarget.style.color = "#e8e8ea";
-						}}
-						onMouseLeave={(e) => {
-							if (!active) e.currentTarget.style.background = "transparent";
-							e.currentTarget.style.color = active ? "#e8e8ea" : "#808088";
-						}}
-					>
-						<Icon size={15} style={{ flexShrink: 0 }} />
-						<span className="flex-1">{label}</span>
-						{badge && (
-							<span
-								className="text-xs px-1.5 py-0.5 rounded"
-								style={{
-									background: "#1e2a1e",
-									color: "#6bcf7f",
-									border: "1px solid #2e3e2e",
-									fontSize: 10,
-									fontWeight: 500,
-								}}
-							>
-								{badge}
-							</span>
-						)}
-					</button>
-				))}
+				{navItems.map(({ icon: Icon, label, route, badge }) => {
+					const active = pathname.includes(route);
+					return (
+						<Link
+							key={label}
+							href={`/${route}`}
+							className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm mb-0.5 transition-all"
+							style={{
+								background: active ? "#1a1a1f" : "transparent",
+								color: active ? "#e8e8ea" : "#808088",
+								fontWeight: active ? 500 : 400,
+							}}
+						>
+							<Icon size={15} style={{ flexShrink: 0 }} />
+							<span className="flex-1">{label}</span>
+							{badge && (
+								<span
+									className="text-xs px-1.5 py-0.5 rounded"
+									style={{
+										background: "#1e2a1e",
+										color: "#6bcf7f",
+										border: "1px solid #2e3e2e",
+										fontSize: 10,
+										fontWeight: 500,
+									}}
+								>
+									{badge}
+								</span>
+							)}
+						</Link>
+					);
+				})}
 			</nav>
 
 			<div className="px-3 pb-3">
