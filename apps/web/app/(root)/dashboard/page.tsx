@@ -31,19 +31,19 @@ const stats: Stat[] = [
         accentColor: '#38bdf8',
         trend: [400, 520, 610, 700, 820, 950, 1100, 1284],
     },
-    {
-        id: 'STAT-003',
-        label: 'Repositories Connected',
-        value: 31,
-        change: 'of 48 repos',
-        status: 'Syncing',
-        statusColor: '#fbbf24',
-        tag: 'Integrations',
-        tagIcon: '⬡',
-        tagColor: '#4ade80',
-        accentColor: '#a78bfa',
-        trend: [10, 14, 18, 21, 25, 27, 29, 31],
-    },
+    // {
+    //     id: 'STAT-003',
+    //     label: 'Repositories Connected',
+    //     value: 31,
+    //     change: 'of 48 repos',
+    //     status: 'Syncing',
+    //     statusColor: '#fbbf24',
+    //     tag: 'Integrations',
+    //     tagIcon: '⬡',
+    //     tagColor: '#4ade80',
+    //     accentColor: '#a78bfa',
+    //     trend: [10, 14, 18, 21, 25, 27, 29, 31],
+    // },
 ];
 
 export default function Dashboard() {

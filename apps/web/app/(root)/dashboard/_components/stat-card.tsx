@@ -38,7 +38,7 @@ export function StatCard({ stat, index }: StatCardProps) {
 
     return (
         <div
-            className={`relative overflow-hidden flex flex-col justify-between rounded-md border border-neutral-800 bg-neutral-900 p-5 transition-all duration-500 ease-out ${
+            className={`relative overflow-hidden flex flex-col gap-3.5 justify-between rounded-md border border-neutral-800 bg-neutral-900 p-5 transition-all duration-500 ease-out ${
                 visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
             }`}
             style={{ minWidth: 0 }}
