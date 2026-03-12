@@ -55,29 +55,39 @@ function AddRepositoriesDialog({ open, onOpenChange }: AddRepositoriesDialogProp
         },
     });
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const observerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (!open) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                const first = entries[0];
+                if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    console.log('Fetching next page...');
                     fetchNextPage();
                 }
             },
-            { threshold: 1.0 },
+            {
+                root: null,
+                threshold: 0.1,
+                rootMargin: '100px',
+            },
         );
 
-        if (observerRef.current) {
-            observer.observe(observerRef.current);
+        const currentObserverRef = observerRef.current;
+        if (currentObserverRef) {
+            observer.observe(currentObserverRef);
         }
 
-        return () => observer.disconnect();
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-    useEffect(() => {
-        if (!open) {
-        }
-    }, [open]);
+        return () => {
+            if (currentObserverRef) {
+                observer.unobserve(currentObserverRef);
+            }
+            observer.disconnect();
+        };
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage, open]);
 
     const handleConnect = (owner: string, repo: string) => {
         setConnectingRepo(repo);
@@ -99,20 +109,12 @@ function AddRepositoriesDialog({ open, onOpenChange }: AddRepositoriesDialogProp
                 }}
             >
                 <style>{`
-                    .custom-scrollbar::-webkit-scrollbar {
-                        width: 6px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-track {
-                        background: #0d0d0d;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb {
-                        background: #242424;
-                        border-radius: 3px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                        background: #333333;
-                    }
-                `}</style>
+                  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                  .custom-scrollbar::-webkit-scrollbar-track { background: #0d0d0d; }
+                  .custom-scrollbar::-webkit-scrollbar-thumb { background: #242424; border-radius: 3px; }
+                  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #333333; }
+              `}</style>
+
                 <div className="flex items-center justify-between flex-shrink-0 px-5 pb-[14px] pt-4 border-b border-[#1a1a1a]">
                     <div className="flex flex-col gap-[3px]">
                         <span className="font-mono text-[10px] text-[#444] tracking-[0.1em]">VCS · REPOSITORIES</span>
@@ -131,13 +133,9 @@ function AddRepositoriesDialog({ open, onOpenChange }: AddRepositoriesDialogProp
                 </div>
 
                 <div
+                    ref={scrollContainerRef}
                     className="flex-1 overflow-y-auto custom-scrollbar"
-                    style={{
-                        padding: '10px 12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                    }}
+                    style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}
                 >
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center gap-2.5 py-12">
@@ -145,7 +143,6 @@ function AddRepositoriesDialog({ open, onOpenChange }: AddRepositoriesDialogProp
                             <span className="font-mono text-[11px] text-[#444] tracking-[0.06em]">
                                 Fetching repositories...
                             </span>
-                            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                         </div>
                     ) : repositories.length === 0 ? (
                         <div className="flex flex-col items-center justify-center gap-2 py-12">
@@ -166,7 +163,6 @@ function AddRepositoriesDialog({ open, onOpenChange }: AddRepositoriesDialogProp
                                         {repo.name}
                                     </span>
                                 </div>
-
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <a
                                         href={repo.htmlUrl}
