@@ -1,7 +1,10 @@
 import prisma from '@repo/db';
+import { sendMessage } from '@repo/kafka';
 import { redis } from '@repo/redis';
 import type { GitHubRepository, GitHubStats } from '@repo/types';
 import { Octokit } from 'octokit';
+
+const TOPIC = 'repo.index';
 
 const STATS_CACHE_TTL = 30 * 60;
 const REPOS_CACHE_TTL = 15 * 60;
@@ -23,13 +26,10 @@ export async function createWebhook(userId: string, owner: string, repo: string)
 
     const octokit = new Octokit({ auth: account.accessToken });
 
-    console.log('before');
     const existingWebhooks = await octokit.rest.repos.listWebhooks({
         owner,
         repo,
     });
-
-    console.log('existing');
 
     const webhookUrl = `${PUBLIC_URL}/api/webhooks/github`;
     const existingWebhook = existingWebhooks.data.find((hook) => hook.config.url === webhookUrl);
@@ -75,6 +75,14 @@ export async function connectRepository(userId: string, owner: string, repo: str
             userId,
         },
     });
+
+    await sendMessage(TOPIC, {
+        repoId: repository.id,
+        owner,
+        repo,
+        url: repository.url,
+    });
+
 
     return repository;
 }

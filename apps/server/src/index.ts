@@ -2,6 +2,7 @@ import { logger } from '@repo/logger';
 import cors from 'cors';
 import express from 'express';
 import 'dotenv/config';
+import { producer } from '@repo/kafka';
 import { authMiddleware } from './middleware/auth.js';
 import { githubRoutes } from './modules/index.js';
 
@@ -23,6 +24,13 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/github', authMiddleware, githubRoutes);
 
-app.listen(PORT, () => {
-    logger.info({ port: PORT }, 'Server started');
-});
+async function start() {
+    await producer.connect();
+    logger.info('Kafka producer connected');
+
+    app.listen(PORT, () => {
+        logger.info({ port: PORT }, 'Server started');
+    });
+}
+
+start();

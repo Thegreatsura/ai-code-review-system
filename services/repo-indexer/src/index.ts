@@ -1,39 +1,31 @@
-import { logger } from "@repo/logger";
-import fs from "fs-extra";
-import { glob } from "glob";
-import { simpleGit } from "simple-git";
+import { kafka } from '@repo/kafka';
+import { logger } from '@repo/logger';
 
-const git = simpleGit();
+const TOPIC = 'repo.index';
 
-async function indexRepository(repoPath: string): Promise<void> {
-	logger.info({ repoPath }, "Indexing repository");
+async function startConsumer(): Promise<void> {
+    const consumer = kafka.consumer({ groupId: 'repo-indexer' });
+    await consumer.connect();
+    await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
+    await consumer.run({
+        eachMessage: async ({ message }) => {
+            const value = message.value?.toString();
+            if (!value) return;
 
-	const files = await glob("**/*", {
-		cwd: repoPath,
-		ignore: ["node_modules/**", ".git/**", "dist/**", "build/**"],
-	});
+            const repoDetails = JSON.parse(value);
+            logger.info({ repoDetails }, 'Received index-repo event');
+        },
+    });
 
-	logger.info({ fileCount: files.length }, "Found files");
-
-	for (const file of files) {
-		const filePath = `${repoPath}/${file}`;
-		const stats = await fs.stat(filePath);
-		if (stats.isFile()) {
-			logger.debug({ file }, "Indexed file");
-		}
-	}
-
-	logger.info({ repoPath }, "Repository indexed successfully");
+    logger.info({ topic: TOPIC }, 'Kafka consumer started');
 }
 
 async function main(): Promise<void> {
-	logger.info("Repo Indexer service started");
-
-	const repoPath = process.argv[2] || process.cwd();
-	await indexRepository(repoPath);
+    logger.info('Repo Indexer service started');
+    await startConsumer();
 }
 
 main().catch((error) => {
-	logger.error({ error }, "Failed to index repository");
-	process.exit(1);
+    logger.error({ error }, 'Failed to index repository');
+    process.exit(1);
 });
