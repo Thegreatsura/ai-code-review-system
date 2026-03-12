@@ -290,7 +290,7 @@ export async function getAllRepositories(userId: string, cursor?: string): Promi
                 }
             }
         }`,
-        { login: viewer.login },
+        { login: viewer.login, cursor },
     );
 
     const repositories: GitHubRepository[] = data.user.repositories.nodes.map((repo) => ({
