@@ -301,6 +301,9 @@ importers:
       '@repo/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@repo/kafka':
         specifier: workspace:*
         version: link:../../packages/kafka
@@ -316,6 +319,9 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      octokit:
+        specifier: ^5.0.5
+        version: 5.0.5
     devDependencies:
       '@types/express':
         specifier: ^5.0.6

@@ -1,20 +1,98 @@
-import express from "express";
-import { logger } from "@repo/logger";
+import 'dotenv/config';
+import prisma from '@repo/db';
+import { ensureTopics, kafka } from '@repo/kafka';
+import { logger } from '@repo/logger';
+import { Octokit } from 'octokit';
 
-const app = express();
-const PORT = process.env.PORT || 4003;
+const TOPIC = 'pr.review';
 
-app.use(express.json());
+interface PRReviewMessage {
+    owner: string;
+    repo: string;
+    prNumber: number;
+    userId: string;
+}
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "pr-processor" });
-});
+async function getAccessToken(userId: string): Promise<string | null> {
+    try {
+        const account = await prisma.account.findFirst({
+            where: { userId, providerId: 'github' },
+            select: { accessToken: true },
+        });
+        return account?.accessToken ?? null;
+    } catch (error) {
+        logger.error({ error, userId }, 'Failed to fetch access token from database');
+        return null;
+    }
+}
 
-app.post("/process", (req, res) => {
-  logger.info({ body: req.body }, "PR Process request received");
-  res.sendStatus(200);
-});
+async function reviewPullRequest(owner: string, repo: string, prNumber: number, accessToken: string): Promise<void> {
+    const octokit = new Octokit({ auth: accessToken });
 
-app.listen(PORT, () => {
-  logger.info({ port: PORT }, "PR Processor service started");
+    const { data: pr } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+    });
+
+    logger.info({ prNumber, title: pr.title, author: pr.user?.login }, 'Processing pull request');
+
+    const { data: diff } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+        mediaType: {
+            format: 'diff',
+        },
+    });
+
+    logger.info({ prNumber }, 'Pull request diff retrieved');
+    logger.info({ diff }, 'Pull request diff content');
+}
+
+async function startConsumer(): Promise<void> {
+    const consumer = kafka.consumer({
+        groupId: 'pr-processor',
+        sessionTimeout: 300000,
+        heartbeatInterval: 30000,
+    });
+    await consumer.connect();
+    await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
+    await consumer.run({
+        eachMessage: async ({ message }) => {
+            const value = message.value?.toString();
+            if (!value) return;
+
+            const prDetails = JSON.parse(value) as PRReviewMessage;
+            logger.info({ prDetails, offset: message.offset }, 'Received pr-review event');
+
+            const { owner, repo, prNumber, userId } = prDetails;
+
+            if (!userId) {
+                logger.error('No userId provided in message');
+                return;
+            }
+
+            const accessToken = await getAccessToken(userId);
+            if (!accessToken) {
+                logger.error({ userId }, 'No GitHub access token found for user');
+                return;
+            }
+
+            await reviewPullRequest(owner, repo, prNumber, accessToken);
+        },
+    });
+
+    logger.info({ topic: TOPIC }, 'Kafka consumer started');
+}
+
+async function main(): Promise<void> {
+    logger.info('PR Processor service started');
+    await ensureTopics([TOPIC]);
+    await startConsumer();
+}
+
+main().catch((error) => {
+    logger.error({ error }, 'Failed to start PR processor');
+    process.exit(1);
 });

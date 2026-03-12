@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import prisma from '@repo/db';
+import { ensureTopics, sendMessage } from '@repo/kafka';
 import { logger } from '@repo/logger';
 import express from 'express';
+
+const TOPIC = 'pr.review';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -38,6 +41,15 @@ app.post('/api/webhooks/github', async (req, res) => {
 
                 if (repository) {
                     logger.info({ repositoryId: repository.id, fullName }, 'Repository found in database');
+
+                    await sendMessage(TOPIC, {
+                        owner,
+                        repo: repoName,
+                        prNumber: pr?.number,
+                        userId: repository.userId,
+                    });
+
+                    logger.info({ owner, repo: repoName, prNumber: pr?.number }, 'Sent PR review message to Kafka');
                 } else {
                     logger.warn({ fullName }, 'Repository not found in database');
                 }
@@ -53,6 +65,7 @@ app.post('/api/webhooks/github', async (req, res) => {
     res.sendStatus(200);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+    await ensureTopics([TOPIC]);
     logger.info({ port: PORT }, 'Webhook service started');
 });
