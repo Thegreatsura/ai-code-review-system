@@ -1,7 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import * as jose from 'jose';
-
-const secret = new TextEncoder().encode(process.env.BETTER_AUTH_SECRET);
+import { auth } from '../auth.js';
 
 export interface AuthenticatedRequest extends Request {
     user?: {
@@ -12,25 +10,26 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    const token = req.headers.authorization?.slice(7);
+    if (!token) {
+        return res.status(401).json({ error: 'Missing token' });
     }
 
-    const token = authHeader.slice(7);
+    const session = await auth.api.getSession({
+        headers: new Headers({
+            Authorization: `Bearer ${token}`,
+        }),
+    });
 
-    try {
-        const { payload } = await jose.jwtVerify(token, secret);
-
-        req.user = {
-            id: payload.sub as string,
-            email: payload.email as string,
-            name: payload.name as string,
-        };
-
-        next();
-    } catch {
-        return res.status(401).json({ error: 'Invalid token' });
+    if (!session?.user) {
+        return res.status(401).json({ error: 'Invalid or expired session' });
     }
+
+    req.user = {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+    };
+
+    next();
 }
