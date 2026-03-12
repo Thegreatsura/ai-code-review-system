@@ -33,7 +33,7 @@ app.post('/api/webhooks/github', async (req, res) => {
         const repoName = repo?.name;
         const fullName = repo?.full_name;
 
-        if (owner && repoName && fullName) {
+        if (owner && repoName && fullName && action === 'opened') {
             try {
                 const repository = await prisma.repository.findFirst({
                     where: { fullName },

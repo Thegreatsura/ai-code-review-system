@@ -79,7 +79,38 @@ async function startConsumer(): Promise<void> {
                 return;
             }
 
-            await reviewPullRequest(owner, repo, prNumber, accessToken);
+            try {
+                await reviewPullRequest(owner, repo, prNumber, accessToken);
+            } catch (error) {
+                logger.error({ error, owner, repo, prNumber }, 'Failed to review pull request');
+
+                const repository = await prisma.repository.findFirst({
+                    where: { owner, name: repo, userId },
+                });
+
+                if (repository) {
+                    await prisma.review.upsert({
+                        where: {
+                            repositoryId_prNumber: {
+                                repositoryId: repository.id,
+                                prNumber,
+                            },
+                        },
+                        create: {
+                            repositoryId: repository.id,
+                            prNumber,
+                            prTitle: `PR #${prNumber}`,
+                            prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+                            review: '',
+                            status: 'failed',
+                        },
+                        update: {
+                            status: 'failed',
+                        },
+                    });
+                    logger.info({ repositoryId: repository.id, prNumber }, 'Created failed review record');
+                }
+            }
         },
     });
 
