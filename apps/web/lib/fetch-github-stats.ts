@@ -33,6 +33,6 @@ export async function fetchGitHubStats(): Promise<GithubStatsReponse> {
     if (!result.success) {
         throw new Error(result.message || 'Failed to fetch stats');
     }
-    console.log(result);
+
     return result;
 }
