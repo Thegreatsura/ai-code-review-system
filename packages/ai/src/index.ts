@@ -31,8 +31,6 @@ export interface RepoDetails {
     repo: string;
 }
 
-const BATCH_SIZE = 50;
-
 export async function generateCodeReview(
     title: string,
     description: string,
