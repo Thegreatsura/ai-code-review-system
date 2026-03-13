@@ -137,6 +137,22 @@ class KafkaManager {
         }
     }
 
+    async sendMessageWithKey(topic: string, message: object, key: string): Promise<void> {
+        const producer = await this.getProducer();
+
+        try {
+            await producer.send({
+                topic,
+                messages: [{ key, value: JSON.stringify(message) }],
+                acks: 1,
+                timeout: 10000,
+            });
+        } catch (error) {
+            console.error(`[Kafka] Failed to send message to topic ${topic}:`, error);
+            throw error;
+        }
+    }
+
     async disconnect(): Promise<void> {
         if (this._producer && this._producerConnected) {
             try {
@@ -166,4 +182,5 @@ export const consumer = kafkaManager.consumer.bind(kafkaManager);
 export const admin = kafkaManager.getAdmin();
 export const ensureTopics = kafkaManager.ensureTopics.bind(kafkaManager);
 export const sendMessage = kafkaManager.sendMessage.bind(kafkaManager);
+export const sendMessageWithKey = kafkaManager.sendMessageWithKey.bind(kafkaManager);
 export { kafkaManager };

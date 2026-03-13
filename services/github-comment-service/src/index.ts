@@ -12,7 +12,8 @@ interface ReviewIssue {
     line: number;
     severity: 'critical' | 'warning' | 'suggestion';
     description: string;
-    diff: string;
+    oldCode: string;
+    newCode: string;
     suggestion: string;
 }
 
@@ -76,7 +77,17 @@ async function postInlineComment(
     const octokit = new Octokit({ auth: accessToken });
 
     const emoji = issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : '🔵';
-    const body = `${emoji} **${issue.severity.toUpperCase()}** at ${issue.file}:${issue.line}\n\n${issue.description}\n\n<details>\n<summary>Problematic Code</summary>\n\n\`\`\`diff\n${issue.diff}\n\`\`\`\n\n</details>\n\n**Suggestion:** ${issue.suggestion}`;
+
+    const oldCode = issue.oldCode || 'N/A';
+    const newCode = issue.newCode || 'N/A';
+    const changeDisplay =
+        issue.oldCode && issue.newCode
+            ? `\`${oldCode}\` → \`${newCode}\``
+            : issue.oldCode
+              ? `Removed: \`${oldCode}\``
+              : `Added: \`${newCode}\``;
+
+    const body = `${emoji} **${issue.severity.toUpperCase()}** at ${issue.file}:${issue.line}\n\n${issue.description}\n\n**Change:** ${changeDisplay}\n\n**Suggestion:** ${issue.suggestion}`;
 
     await octokit.rest.pulls.createReviewComment({
         owner,
