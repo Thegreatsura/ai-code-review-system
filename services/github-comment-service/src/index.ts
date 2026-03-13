@@ -4,7 +4,6 @@ import { ensureTopics, kafkaManager } from '@repo/kafka';
 import { logger } from '@repo/logger';
 import { Octokit } from 'octokit';
 
-const TOPIC_COMMENT = 'pr.comment';
 const TOPIC_ISSUES = 'pr.issues';
 
 interface ReviewIssue {
@@ -17,14 +16,6 @@ interface ReviewIssue {
     suggestion: string;
 }
 
-interface PRCommentMessage {
-    owner: string;
-    repo: string;
-    prNumber: number;
-    userId: string;
-    comment: string;
-}
-
 interface PRIssuesMessage {
     owner: string;
     repo: string;
@@ -32,6 +23,7 @@ interface PRIssuesMessage {
     userId: string;
     commitSha: string;
     issues: ReviewIssue[];
+    summary?: string;
 }
 
 async function getAccessToken(userId: string): Promise<string | null> {
@@ -80,6 +72,7 @@ async function postInlineComment(
 
     const oldCode = issue.oldCode || 'N/A';
     const newCode = issue.newCode || 'N/A';
+    const side = issue.oldCode && !issue.newCode ? 'LEFT' : 'RIGHT';
     const changeDisplay =
         issue.oldCode && issue.newCode
             ? `\`${oldCode}\` → \`${newCode}\``
@@ -96,55 +89,11 @@ async function postInlineComment(
         commit_id: commitSha,
         path: issue.file,
         line: issue.line,
-        side: 'RIGHT',
+        side,
         body,
     });
 
     logger.info({ owner, repo, prNumber, file: issue.file, line: issue.line }, 'Posted inline comment to pull request');
-}
-
-async function startCommentConsumer(): Promise<void> {
-    const consumer = kafkaManager.consumer({
-        groupId: 'github-comment-service-comment',
-        sessionTimeout: 300000,
-        heartbeatInterval: 30000,
-    });
-
-    await consumer.connect();
-    logger.info('[GitHub Comment Service] Comment consumer connected to Kafka');
-
-    await consumer.subscribe({ topic: TOPIC_COMMENT, fromBeginning: false });
-
-    await consumer.run({
-        eachMessage: async ({ message }) => {
-            const value = message.value?.toString();
-            if (!value) return;
-
-            const prComment = JSON.parse(value) as PRCommentMessage;
-            logger.info({ prComment, offset: message.offset }, 'Received pr-comment event');
-
-            const { owner, repo, prNumber, userId, comment } = prComment;
-
-            if (!userId) {
-                logger.error('No userId provided in message');
-                return;
-            }
-
-            const accessToken = await getAccessToken(userId);
-            if (!accessToken) {
-                logger.error({ userId }, 'No GitHub access token found for user');
-                return;
-            }
-
-            try {
-                await postComment(owner, repo, prNumber, comment, accessToken);
-            } catch (error) {
-                logger.error({ error, owner, repo, prNumber }, 'Failed to post comment');
-            }
-        },
-    });
-
-    logger.info({ topic: TOPIC_COMMENT }, 'Comment consumer started');
 }
 
 async function startIssuesConsumer(): Promise<void> {
@@ -167,7 +116,7 @@ async function startIssuesConsumer(): Promise<void> {
             const prIssues = JSON.parse(value) as PRIssuesMessage;
             logger.info({ prIssues, offset: message.offset }, 'Received pr-issues event');
 
-            const { owner, repo, prNumber, userId, commitSha, issues } = prIssues;
+            const { owner, repo, prNumber, userId, commitSha, issues, summary } = prIssues;
 
             if (!userId) {
                 logger.error('No userId provided in message');
@@ -180,12 +129,28 @@ async function startIssuesConsumer(): Promise<void> {
                 return;
             }
 
-            try {
-                for (const issue of issues) {
+            const failedIssues: { issue: ReviewIssue; error: unknown }[] = [];
+            for (const issue of issues) {
+                try {
                     await postInlineComment(owner, repo, prNumber, commitSha, issue, accessToken);
+                } catch (error) {
+                    logger.error({ error, owner, repo, prNumber, issue }, 'Failed to post inline comment');
+                    failedIssues.push({ issue, error });
                 }
-            } catch (error) {
-                logger.error({ error, owner, repo, prNumber }, 'Failed to post inline comments');
+            }
+            if (failedIssues.length > 0) {
+                logger.error(
+                    { owner, repo, prNumber, failedCount: failedIssues.length },
+                    'Some inline comments failed to post',
+                );
+            }
+
+            if (summary) {
+                try {
+                    await postComment(owner, repo, prNumber, summary, accessToken);
+                } catch (error) {
+                    logger.error({ error, owner, repo, prNumber }, 'Failed to post summary comment');
+                }
             }
         },
     });
@@ -197,10 +162,9 @@ async function main(): Promise<void> {
     logger.info('GitHub Comment service starting...');
 
     try {
-        await ensureTopics([TOPIC_COMMENT, TOPIC_ISSUES]);
+        await ensureTopics([TOPIC_ISSUES]);
         logger.info('[GitHub Comment Service] Topics ensured');
 
-        await startCommentConsumer();
         await startIssuesConsumer();
     } catch (error) {
         logger.error({ error }, 'Failed to start GitHub Comment service');

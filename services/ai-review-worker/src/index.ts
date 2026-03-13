@@ -7,7 +7,6 @@ import { generateText } from 'ai';
 
 const TOPIC_REVIEW = 'pr.ai-review';
 const TOPIC_ISSUES = 'pr.issues';
-const TOPIC_COMMENT = 'pr.comment';
 
 interface AIReviewMessage {
     title: string;
@@ -150,16 +149,15 @@ Return ONLY valid JSON, no markdown formatting.`;
     });
 
     try {
-        // Step 1: Strip markdown code fences if present
         let cleanedText = text.trim();
-        if (cleanedText.startsWith('```')) {
-            cleanedText = cleanedText
-                .replace(/^```(?:json)?\s*/i, '')
-                .replace(/\s*```$/, '')
-                .trim();
-        }
 
-        // Step 2: Extract outermost JSON object
+        // Strip opening fence (e.g. ```json\n or ```\n)
+        cleanedText = cleanedText
+            .replace(/^```[\w]*\n?/, '')
+            .replace(/\n?```$/, '')
+            .trim();
+
+        // Extract outermost JSON object
         const startIdx = cleanedText.indexOf('{');
         const endIdx = cleanedText.lastIndexOf('}');
         if (startIdx === -1 || endIdx === -1) {
@@ -167,23 +165,24 @@ Return ONLY valid JSON, no markdown formatting.`;
         }
         cleanedText = cleanedText.slice(startIdx, endIdx + 1);
 
-        // Step 3: Parse directly — don't mangle the JSON
         const result = JSON.parse(cleanedText) as ReviewResult;
 
-        // Step 4: Validate shape
         if (!Array.isArray(result.issues)) result.issues = [];
         if (typeof result.summary !== 'string') result.summary = '';
         if (typeof result.strengths !== 'string') result.strengths = '';
 
         return result;
     } catch (parseError) {
-        logger.error({ parseError, text: text.substring(0, 1000) }, 'Failed to parse AI response as JSON');
-        // Fallback: return empty review instead of crashing the worker
-        return {
-            issues: [],
-            summary: 'AI review could not be parsed.',
-            strengths: '',
-        };
+        // Fix: serialize the error message explicitly so Pino captures it
+        logger.error(
+            {
+                parseErrorMessage: parseError instanceof Error ? parseError.message : String(parseError),
+                parseErrorName: parseError instanceof Error ? parseError.name : 'UnknownError',
+                rawTextSnippet: text.substring(0, 500),
+            },
+            'Failed to parse AI response as JSON',
+        );
+        return { issues: [], summary: 'AI review could not be parsed.', strengths: '' };
     }
 }
 
@@ -236,38 +235,25 @@ async function startConsumer(): Promise<void> {
 
                 const messageKey = `${owner}/${repo}/${prNumber}`;
 
-                if (issuesWithLines.length > 0) {
-                    await sendMessageWithKey(
-                        TOPIC_ISSUES,
-                        {
-                            owner,
-                            repo,
-                            prNumber,
-                            userId,
-                            commitSha,
-                            issues: issuesWithLines,
-                        },
-                        messageKey,
-                    );
-                    logger.info(
-                        { repoId, prNumber, issuesCount: issuesWithLines.length },
-                        'Sent issues to Kafka (will be posted first)',
-                    );
-                }
-
                 const summaryMessage = `## Code Review Summary\n\n${review.summary}\n\n### Strengths\n${review.strengths}\n\n### Issues Found: ${uniqueIssues.length}`;
+
                 await sendMessageWithKey(
-                    TOPIC_COMMENT,
+                    TOPIC_ISSUES,
                     {
                         owner,
                         repo,
                         prNumber,
                         userId,
-                        comment: summaryMessage,
+                        commitSha,
+                        issues: issuesWithLines,
+                        summary: summaryMessage,
                     },
                     messageKey,
                 );
-                logger.info({ repoId, prNumber }, 'Sent summary to Kafka (will be posted last)');
+                logger.info(
+                    { repoId, prNumber, issuesCount: issuesWithLines.length },
+                    'Sent issues and summary to Kafka',
+                );
             } catch (error) {
                 logger.error(
                     { error: String(error), repoId, prNumber, stack: error instanceof Error ? error.stack : undefined },
@@ -284,7 +270,7 @@ async function main(): Promise<void> {
     logger.info('AI Review Worker service starting...');
 
     try {
-        await ensureTopics([TOPIC_REVIEW, TOPIC_ISSUES, TOPIC_COMMENT]);
+        await ensureTopics([TOPIC_REVIEW, TOPIC_ISSUES]);
         logger.info('[AI Review Worker] Topics ensured');
 
         await startConsumer();
