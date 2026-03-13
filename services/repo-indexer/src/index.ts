@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import prisma from '@repo/db';
-import { ensureTopics, kafka } from '@repo/kafka';
+import { ensureTopics, kafka, sendMessage } from '@repo/kafka';
 import { logger } from '@repo/logger';
 import { Octokit } from 'octokit';
 import { generateEmbedding, indexCodebase } from './lib/embedding.js';
@@ -9,6 +9,7 @@ import { pineconeIndex } from './lib/pinecone.js';
 
 const TOPIC = 'repo.index';
 const CONTEXT_TOPIC = 'pr.context';
+const AI_REVIEW_TOPIC = 'pr.ai-review';
 
 interface PRContextMessage {
     query: string;
@@ -17,6 +18,7 @@ interface PRContextMessage {
     repo: string;
     prNumber: number;
     userId: string;
+    diff: string;
 }
 
 async function getAccessToken(userId: string): Promise<string | null> {
@@ -76,13 +78,25 @@ async function startContextConsumer(): Promise<void> {
             const contextMessage = JSON.parse(value) as PRContextMessage;
             logger.info({ contextMessage, offset: message.offset }, 'Received pr-context event');
 
-            const { query, repoId, owner, repo, prNumber } = contextMessage;
+            const { query, repoId, owner, repo, prNumber, userId, diff } = contextMessage;
             logger.info({ query, repoId }, 'Retrieving context for PR');
 
             try {
                 const context = await retrieveContext(query, repoId);
                 logger.info({ repoId, prNumber, contextLength: context.length }, 'Retrieved context for PR');
-                logger.info({ context }, 'Context content');
+
+                await sendMessage(AI_REVIEW_TOPIC, {
+                    title: query.split('\n')[0],
+                    description: query.split('\n').slice(1).join('\n'),
+                    context,
+                    diff,
+                    repoId,
+                    owner,
+                    repo,
+                    prNumber,
+                    userId,
+                });
+                logger.info({ repoId, prNumber }, 'Sent AI review message to Kafka');
             } catch (error) {
                 logger.error({ error, repoId, prNumber }, 'Failed to retrieve context');
             }
@@ -129,7 +143,7 @@ async function startConsumer(): Promise<void> {
 
 async function main(): Promise<void> {
     logger.info('Repo Indexer service started');
-    await ensureTopics([TOPIC, CONTEXT_TOPIC]);
+    await ensureTopics([TOPIC, CONTEXT_TOPIC, AI_REVIEW_TOPIC]);
     await startConsumer();
     await startContextConsumer();
 }

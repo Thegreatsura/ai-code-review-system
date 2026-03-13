@@ -18,6 +18,7 @@ interface PRReviewMessage {
 interface PRDetails {
     prTitle: string;
     prBody: string;
+    diff: string;
 }
 
 async function getAccessToken(userId: string): Promise<string | null> {
@@ -64,6 +65,7 @@ async function reviewPullRequest(
     return {
         prTitle: pr.title,
         prBody: pr.body || '',
+        diff: diff as unknown as string,
     };
 }
 
@@ -97,9 +99,9 @@ async function startConsumer(): Promise<void> {
             }
 
             try {
-                const prDetails = await reviewPullRequest(owner, repo, prNumber, accessToken);
+                const prData = await reviewPullRequest(owner, repo, prNumber, accessToken);
 
-                const query = `${prDetails.prTitle}\n${prDetails.prBody}`;
+                const query = `${prData.prTitle}\n${prData.prBody}`;
                 logger.info({ query }, 'Generated query for context retrieval');
 
                 const repository = await prisma.repository.findFirst({
@@ -114,6 +116,7 @@ async function startConsumer(): Promise<void> {
                         repo,
                         prNumber,
                         userId,
+                        diff: prData.diff,
                     });
                     logger.info({ repoId: repository.id, prNumber }, 'Sent context retrieval message to Kafka');
                 }
@@ -125,7 +128,7 @@ async function startConsumer(): Promise<void> {
                     userId,
                     comment: `> [!NOTE]
 > Currently processing new changes in this PR. This may take a few minutes, please wait...
-> 
+>
 > \`\`\`ascii
 >  ________________________________
 > < Overly attached code reviewer. >
