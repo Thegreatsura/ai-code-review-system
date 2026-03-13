@@ -7,10 +7,18 @@ A monorepo for automated code review using AI.
 ### Apps and Packages
 
 - `apps/web`: a [Next.js](https://nextjs.org/) app
-- `packages/logger`: a logging utility shared across services
+- `apps/server`: a Node.js API server
+- `packages/ai`: AI utilities shared across services
+- `packages/config`: shared configuration
+- `packages/db`: Prisma database client
+- `packages/kafka`: Kafka utilities
+- `packages/logger`: logging utility shared across services
+- `packages/redis`: Redis client
+- `packages/types`: shared TypeScript types
 - `services/ai-review-worker`: AI review worker service
 - `services/github-comment-service`: GitHub comment service
 - `services/pr-processor`: PR processor service
+- `services/repo-indexer`: Repository indexing service
 - `services/webhook-service`: Webhook service
 
 Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
@@ -48,56 +56,58 @@ pnpm dev --filter=ai-review-worker
 ```mermaid
 flowchart TD
 
-    %% Frontend
+    %% Frontend & Backend
     A[User] --> B[apps/web Next.js]
+    A --> C[apps/server API]
 
     %% Repo connection
-    B --> C[Connect GitHub Repo]
+    B --> D[Connect GitHub Repo]
+    C --> D
 
-    C --> D[Store Repo Info]
-    D --> DB[(Postgres)]
+    D --> E[Store Repo Info]
+    E --> DB[(Postgres)]
 
-    C --> E[Attach GitHub Webhook]
+    D --> F[Attach GitHub Webhook]
 
     %% Repo indexing
-    C --> F[services/repo-indexer]
+    D --> G[services/repo-indexer]
 
-    F --> G[Clone Repository]
-    G --> H[Chunk Code]
-    H --> I[Generate Embeddings]
-    I --> J[(Pinecone Vector DB)]
+    G --> H[Clone Repository]
+    H --> I[Chunk Code]
+    I --> J[Generate Embeddings]
+    J --> K[(Pinecone Vector DB)]
 
     %% PR event
-    K[User Creates PR] --> L[GitHub Webhook]
+    L[User Creates PR] --> M[GitHub Webhook]
 
-    L --> M[services/webhook-service]
+    M --> N[services/webhook-service]
 
-    M --> N[Kafka: pr-events]
+    N --> O[Kafka: pr-events]
 
     %% PR processing
-    N --> O[services/pr-processor]
+    O --> P[services/pr-processor]
 
-    O --> P[Fetch PR Diff from GitHub]
+    P --> Q[Fetch PR Diff from GitHub]
 
-    P --> Q[Kafka: review-jobs]
+    Q --> R[Kafka: review-jobs]
 
     %% AI review worker
-    Q --> R[services/ai-review-worker]
+    R --> S[services/ai-review-worker]
 
-    R --> S[Check Redis Cache]
+    S --> T[Check Redis Cache]
 
-    S -->|Cache Hit| T[Return Cached Review]
+    T -->|Cache Hit| U[Return Cached Review]
 
-    S -->|Cache Miss| U[Retrieve Context from Pinecone]
+    T -->|Cache Miss| V[Retrieve Context from Pinecone]
 
-    U --> V[Gemini AI Review]
+    V --> W[Gemini AI Review]
 
-    V --> W[Store Review in Redis]
+    W --> X[Store Review in Redis]
 
-    W --> X[Kafka: review-results]
+    X --> Y[Kafka: review-results]
 
     %% Comment service
-    X --> Y[services/github-comment-service]
+    Y --> Z[services/github-comment-service]
 
-    Y --> Z[Post Comment on PR]
+    Z --> AA[Post Comment on PR]
 ```
