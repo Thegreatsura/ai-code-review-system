@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import { google } from '@ai-sdk/google';
 import prisma from '@repo/db';
-import { ensureTopics, kafkaManager } from '@repo/kafka';
+import { ensureTopics, kafkaManager, sendMessageWithKey } from '@repo/kafka';
 import { logger } from '@repo/logger';
 import { generateText } from 'ai';
-import { Octokit } from 'octokit';
 
-const TOPIC = 'pr.ai-review';
+const TOPIC_REVIEW = 'pr.ai-review';
+const TOPIC_ISSUES = 'pr.issues';
 
 interface AIReviewMessage {
     title: string;
@@ -18,6 +18,7 @@ interface AIReviewMessage {
     repo: string;
     prNumber: number;
     userId: string;
+    commitSha: string;
 }
 
 async function getAccessToken(userId: string): Promise<string | null> {
@@ -33,13 +34,79 @@ async function getAccessToken(userId: string): Promise<string | null> {
     }
 }
 
+interface ReviewIssue {
+    file: string;
+    line: number;
+    severity: 'critical' | 'warning' | 'suggestion';
+    description: string;
+    oldCode: string;
+    newCode: string;
+    suggestion: string;
+}
+
+interface ReviewResult {
+    issues: ReviewIssue[];
+    summary: string;
+    strengths: string;
+}
+
+function findLineNumberInDiff(diff: string, file: string, code: string): number {
+    const lines = diff.split('\n');
+    let currentFile = '';
+    let hunkStartLine = 0;
+    const searchCode = code.substring(0, 30).trim();
+
+    for (const line of lines) {
+        if (line.startsWith('diff --git')) {
+            const match = line.match(/b\/(.+)/);
+            if (match && match[1]) currentFile = match[1];
+        } else if (line.startsWith('@@')) {
+            const match = line.match(/@@ -\d+(?:,\d+)? \+(\d+)/);
+            if (match && match[1]) hunkStartLine = parseInt(match[1], 10);
+        } else if (currentFile === file && line.includes(searchCode)) {
+            return hunkStartLine;
+        } else if (currentFile === file && (line.startsWith('+') || line.startsWith(' '))) {
+            hunkStartLine++;
+        }
+    }
+
+    return 1;
+}
+
+interface ReviewResult {
+    issues: ReviewIssue[];
+    summary: string;
+    strengths: string;
+}
+
+function createIssueHash(issue: ReviewIssue): string {
+    return `${issue.file}:${issue.line}:${issue.description.substring(0, 50)}`;
+}
+
+function deduplicateIssues(issues: ReviewIssue[]): ReviewIssue[] {
+    const seen = new Set<string>();
+    const deduplicated: ReviewIssue[] = [];
+
+    for (const issue of issues) {
+        const hash = createIssueHash(issue);
+        if (!seen.has(hash)) {
+            seen.add(hash);
+            deduplicated.push(issue);
+        } else {
+            logger.warn({ issue }, 'Duplicate issue found, skipping');
+        }
+    }
+
+    return deduplicated;
+}
+
 async function generateCodeReview(
     title: string,
     description: string,
     context: string[],
     diff: string,
-): Promise<string> {
-    const prompt = `You are an expert code reviewer. Analyze the following pull request and provide a detailed, constructive code review.
+): Promise<ReviewResult> {
+    const prompt = `You are an expert code reviewer. Analyze the following pull request and provide a structured code review.
 
 PR Title: ${title}
 PR Description: ${description || 'No description provided'}
@@ -52,42 +119,71 @@ Code Changes:
 ${diff}
 \`\`\`
 
-Please provide:
-1. **Walkthrough**: A file-by-file explanation of the changes.
-2. **Sequence Diagram**: A Mermaid JS sequence diagram visualizing the flow of the changes (if applicable). Use \`\`\`mermaid ... \`\`\` block. **IMPORTANT**: Ensure the Mermaid syntax is valid. Do not use special characters (like quotes, braces, parentheses) inside Note text or labels as it breaks rendering. Keep the diagram simple.
-3. **Summary**: Brief overview.
-4. **Strengths**: What's done well.
-5. **Issues**: Bugs, security concerns, code smells.
-6. **Suggestions**: Specific code improvements.
-7. **Poem**: A short, creative poem summarizing the changes at the very end.
+Analyze the changes and return a JSON object with the following structure:
+{
+  "issues": [
+    {
+      "file": "filename.ts",
+      "severity": "critical|warning|suggestion",
+      "description": "What's wrong - be specific and concise",
+      "oldCode": "exact code that was removed (leave empty if new code only)",
+      "newCode": "exact code that was added (leave empty if removal only)",
+      "suggestion": "how to fix it - be specific"
+    }
+  ],
+  "summary": "Brief overview of the changes in 2-3 sentences",
+  "strengths": "What's done well - mention specific positive aspects"
+}
 
-Format your response in markdown.`;
+IMPORTANT:
+1. For oldCode and newCode, provide the EXACT code from the diff (without +/- prefixes)
+2. Only report actual issues - bugs, security vulnerabilities, logic errors, performance concerns
+3. If no significant issues found, return empty array for issues
+4. Each issue should be unique - don't report the same issue multiple times
+
+Return ONLY valid JSON, no markdown formatting.`;
 
     const { text } = await generateText({
         model: google('gemini-2.5-flash'),
         prompt,
     });
 
-    return text;
-}
+    try {
+        let cleanedText = text.trim();
 
-async function postReviewComment(
-    owner: string,
-    repo: string,
-    prNumber: number,
-    comment: string,
-    accessToken: string,
-): Promise<void> {
-    const octokit = new Octokit({ auth: accessToken });
+        // Strip opening fence (e.g. ```json\n or ```\n)
+        cleanedText = cleanedText
+            .replace(/^```[\w]*\n?/, '')
+            .replace(/\n?```$/, '')
+            .trim();
 
-    await octokit.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: prNumber,
-        body: comment,
-    });
+        // Extract outermost JSON object
+        const startIdx = cleanedText.indexOf('{');
+        const endIdx = cleanedText.lastIndexOf('}');
+        if (startIdx === -1 || endIdx === -1) {
+            throw new Error('No JSON object found in response');
+        }
+        cleanedText = cleanedText.slice(startIdx, endIdx + 1);
 
-    logger.info({ owner, repo, prNumber }, 'Posted review comment to pull request');
+        const result = JSON.parse(cleanedText) as ReviewResult;
+
+        if (!Array.isArray(result.issues)) result.issues = [];
+        if (typeof result.summary !== 'string') result.summary = '';
+        if (typeof result.strengths !== 'string') result.strengths = '';
+
+        return result;
+    } catch (parseError) {
+        // Fix: serialize the error message explicitly so Pino captures it
+        logger.error(
+            {
+                parseErrorMessage: parseError instanceof Error ? parseError.message : String(parseError),
+                parseErrorName: parseError instanceof Error ? parseError.name : 'UnknownError',
+                rawTextSnippet: text.substring(0, 500),
+            },
+            'Failed to parse AI response as JSON',
+        );
+        return { issues: [], summary: 'AI review could not be parsed.', strengths: '' };
+    }
 }
 
 async function startConsumer(): Promise<void> {
@@ -100,7 +196,7 @@ async function startConsumer(): Promise<void> {
     await consumer.connect();
     logger.info('[AI Review Worker] Consumer connected to Kafka');
 
-    await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
+    await consumer.subscribe({ topic: TOPIC_REVIEW, fromBeginning: false });
 
     await consumer.run({
         eachMessage: async ({ message }) => {
@@ -110,40 +206,71 @@ async function startConsumer(): Promise<void> {
             const reviewMessage = JSON.parse(value) as AIReviewMessage;
             logger.info({ reviewMessage, offset: message.offset }, 'Received AI review event');
 
-            const { title, description, context, diff, repoId, owner, repo, prNumber, userId } = reviewMessage;
+            const { title, description, context, diff, repoId, owner, repo, prNumber, userId, commitSha } =
+                reviewMessage;
 
             if (!userId) {
                 logger.error('No userId provided in message');
                 return;
             }
 
-            const accessToken = await getAccessToken(userId);
-            if (!accessToken) {
-                logger.error({ userId }, 'No GitHub access token found for user');
-                return;
-            }
-
             try {
                 logger.info({ repoId, prNumber }, 'Generating code review...');
                 const review = await generateCodeReview(title, description, context, diff);
-                logger.info({ repoId, prNumber, reviewLength: review.length }, 'Generated code review');
 
-                await postReviewComment(owner, repo, prNumber, review, accessToken);
-                logger.info({ repoId, prNumber }, 'Posted review comment');
+                const uniqueIssues = deduplicateIssues(review.issues);
+
+                const issuesWithLines = uniqueIssues.map((issue) => {
+                    const resolvedLine = findLineNumberInDiff(diff, issue.file, issue.newCode || issue.oldCode);
+                    return {
+                        ...issue,
+                        line: resolvedLine,
+                    };
+                });
+
+                logger.info(
+                    { repoId, prNumber, totalIssues: review.issues.length, uniqueIssues: uniqueIssues.length },
+                    'Deduplicated and resolved line numbers for issues',
+                );
+
+                const messageKey = `${owner}/${repo}/${prNumber}`;
+
+                const summaryMessage = `## Code Review Summary\n\n${review.summary}\n\n### Strengths\n${review.strengths}\n\n### Issues Found: ${uniqueIssues.length}`;
+
+                await sendMessageWithKey(
+                    TOPIC_ISSUES,
+                    {
+                        owner,
+                        repo,
+                        prNumber,
+                        userId,
+                        commitSha,
+                        issues: issuesWithLines,
+                        summary: summaryMessage,
+                    },
+                    messageKey,
+                );
+                logger.info(
+                    { repoId, prNumber, issuesCount: issuesWithLines.length },
+                    'Sent issues and summary to Kafka',
+                );
             } catch (error) {
-                logger.error({ error, repoId, prNumber }, 'Failed to generate/post review');
+                logger.error(
+                    { error: String(error), repoId, prNumber, stack: error instanceof Error ? error.stack : undefined },
+                    'Failed to generate/post review',
+                );
             }
         },
     });
 
-    logger.info({ topic: TOPIC }, 'Kafka consumer started');
+    logger.info({ topic: TOPIC_REVIEW }, 'Kafka consumer started');
 }
 
 async function main(): Promise<void> {
     logger.info('AI Review Worker service starting...');
 
     try {
-        await ensureTopics([TOPIC]);
+        await ensureTopics([TOPIC_REVIEW, TOPIC_ISSUES]);
         logger.info('[AI Review Worker] Topics ensured');
 
         await startConsumer();
