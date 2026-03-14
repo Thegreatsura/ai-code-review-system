@@ -4,7 +4,7 @@ import express from 'express';
 import 'dotenv/config';
 import { kafkaManager } from '@repo/kafka';
 import { authMiddleware } from './middleware/auth.js';
-import { githubRoutes } from './modules/index.js';
+import { githubRoutes, reviewRoutes } from './modules/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -23,6 +23,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/github', authMiddleware, githubRoutes);
+app.use('/api/reviews', authMiddleware, reviewRoutes);
 
 async function start() {
     try {
