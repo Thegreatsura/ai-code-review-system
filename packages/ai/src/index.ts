@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { google } from '@ai-sdk/google';
 import { logger } from '@repo/logger';
 import { embed, generateText } from 'ai';
+import { jsonrepair } from 'jsonrepair';
 
 export interface ReviewIssue {
     file: string;
@@ -35,44 +36,6 @@ export interface RepoDetails {
     repo: string;
 }
 
-function sanitizeJsonString(jsonStr: string): string {
-    let result = '';
-    let inString = false;
-    let escaped = false;
-
-    for (let i = 0; i < jsonStr.length; i++) {
-        const char = jsonStr[i];
-
-        if (escaped) {
-            result += char;
-            escaped = false;
-            continue;
-        }
-
-        if (char === '\\' && inString) {
-            result += char;
-            escaped = true;
-            continue;
-        }
-
-        if (char === '"') {
-            inString = !inString;
-            result += char;
-            continue;
-        }
-
-        if (inString) {
-            if (char === '\n')      result += '\\n';
-            else if (char === '\r') result += '\\r';
-            else if (char === '\t') result += '\\t';
-            else                    result += char;
-        } else {
-            result += char;
-        }
-    }
-
-    return result;
-}
 
 export async function generateCodeReview(
     title: string,
@@ -128,25 +91,15 @@ Return ONLY valid JSON, no markdown formatting.`;
     });
 
     try {
-        let cleanedText = text.trim();
+      let cleanedText = text.trim();
 
-        // Strip opening fence (e.g. ```json\n or ```\n)
-        cleanedText = cleanedText
-            .replace(/^```[\w]*\n?/, '')
-            .replace(/\n?```$/, '')
-            .trim();
-
-        // Extract outermost JSON object
-        const startIdx = cleanedText.indexOf('{');
-        const endIdx = cleanedText.lastIndexOf('}');
-        if (startIdx === -1 || endIdx === -1) {
-            throw new Error('No JSON object found in response');
-        }
-        cleanedText = cleanedText.slice(startIdx, endIdx + 1);
-
-        cleanedText = sanitizeJsonString(cleanedText);
-
-        const result = JSON.parse(cleanedText) as ReviewResult;
+       const startIdx = cleanedText.indexOf('{');
+       const endIdx = cleanedText.lastIndexOf('}');
+       if (startIdx === -1 || endIdx === -1) {
+           throw new Error('No JSON object found in response');
+       }
+       cleanedText = cleanedText.slice(startIdx, endIdx + 1);
+       const result = JSON.parse(jsonrepair(cleanedText)) as ReviewResult;
 
         if (!Array.isArray(result.issues)) result.issues = [];
         if (!Array.isArray(result.suggestions)) result.suggestions = [];
