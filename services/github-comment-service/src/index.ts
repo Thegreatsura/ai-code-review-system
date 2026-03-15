@@ -5,6 +5,15 @@ import { logger } from '@repo/logger';
 import { Octokit } from 'octokit';
 
 const TOPIC_ISSUES = 'pr.issues';
+const COMMENT_TOPIC = 'pr.comment';
+
+interface CommentMessage {
+    owner: string;
+    repo: string;
+    prNumber: number;
+    userId: string;
+    comment: string;
+}
 
 interface ReviewIssue {
     file: string;
@@ -158,14 +167,59 @@ async function startIssuesConsumer(): Promise<void> {
     logger.info({ topic: TOPIC_ISSUES }, 'Issues consumer started');
 }
 
+async function startCommentConsumer(): Promise<void> {
+    const consumer = kafkaManager.consumer({
+        groupId: 'github-comment-service-comment',
+        sessionTimeout: 300000,
+        heartbeatInterval: 30000,
+    });
+
+    await consumer.connect();
+    logger.info('[GitHub Comment Service] Comment consumer connected to Kafka');
+
+    await consumer.subscribe({ topic: COMMENT_TOPIC, fromBeginning: false });
+
+    await consumer.run({
+        eachMessage: async ({ message }) => {
+            const value = message.value?.toString();
+            if (!value) return;
+
+            const commentMsg = JSON.parse(value) as CommentMessage;
+            logger.info({ commentMsg, offset: message.offset }, 'Received pr-comment event');
+
+            const { owner, repo, prNumber, userId, comment } = commentMsg;
+
+            if (!userId) {
+                logger.error('No userId provided in message');
+                return;
+            }
+
+            const accessToken = await getAccessToken(userId);
+            if (!accessToken) {
+                logger.error({ userId }, 'No GitHub access token found for user');
+                return;
+            }
+
+            try {
+                await postComment(owner, repo, prNumber, comment, accessToken);
+            } catch (error) {
+                logger.error({ error, owner, repo, prNumber }, 'Failed to post initial comment');
+            }
+        },
+    });
+
+    logger.info({ topic: COMMENT_TOPIC }, 'Comment consumer started');
+}
+
 async function main(): Promise<void> {
     logger.info('GitHub Comment service starting...');
 
     try {
-        await ensureTopics([TOPIC_ISSUES]);
+        await ensureTopics([TOPIC_ISSUES, COMMENT_TOPIC]);
         logger.info('[GitHub Comment Service] Topics ensured');
 
         await startIssuesConsumer();
+        await startCommentConsumer();
     } catch (error) {
         logger.error({ error }, 'Failed to start GitHub Comment service');
 
