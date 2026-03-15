@@ -165,16 +165,19 @@ const ReviewHistoryPage = () => {
                   </ReactMarkdown>
 
                   {review.issues && review.issues.length > 0 && (
-                    <div className="mt-6 pt-8 border-t border-neutral-900">
+                    <div className="mt-6 pt-2 border-t border-neutral-900">
                       <div className="grid gap-3">
                         {review.issues.map((issue: string, i: number) => (
-                          <div key={i} className="flex gap-4 p-4 rounded-lg bg-[#0D0D0D] border border-neutral-800/40 hover:border-amber-500/20 transition-colors group/issue">
+                          <div key={i} className="p-4 flex gap-2">
                             <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-500 group-hover/issue:text-amber-500">
                               {String(i + 1).padStart(2, '0')}
                             </div>
-                            <p className="text-[13px] text-neutral-400 leading-relaxed font-mono">
-                              {issue}
-                            </p>
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={MarkdownComponents}
+                              >
+                                {issue}
+                              </ReactMarkdown>
                           </div>
                         ))}
                       </div>
