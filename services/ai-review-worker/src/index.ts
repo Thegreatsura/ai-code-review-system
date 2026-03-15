@@ -4,6 +4,7 @@ import { generateCodeReview, type ReviewIssue } from '@repo/ai';
 import prisma from '@repo/db';
 import { ensureTopics, kafkaManager, sendMessageWithKey } from '@repo/kafka';
 import { logger } from '@repo/logger';
+import type { IssueWithMetadata } from '@repo/types';
 
 const TOPIC_REVIEW = 'pr.ai-review';
 const TOPIC_ISSUES = 'pr.issues';
@@ -59,17 +60,6 @@ function buildIssueComment(issue: ReviewIssue & { line: number }): string {
     return `${emoji} **${issue.severity.toUpperCase()}** at ${issue.file}:${issue.line}\n\n${issue.description}\n\n**Change:** ${changeDisplay}\n\n**Suggestion:** ${issue.suggestion}`;
 }
 
-interface IssueWithMetadata {
-    file: string;
-    line: number;
-    severity: string;
-    description: string;
-    commentBody: string;
-    diff: {
-        oldCode: string;
-        newCode: string;
-    };
-}
 function createIssueHash(issue: ReviewIssue): string {
     return `${issue.file}:${issue.line}:${issue.description.substring(0, 50)}`;
 }
@@ -160,20 +150,45 @@ async function startConsumer(): Promise<void> {
                     'Sent issues and summary to Kafka',
                 );
 
-                const issuesWithMetadata: IssueWithMetadata[] = issuesWithLines.map((issue) => {
-                    const commentBody = buildIssueComment(issue);
-                    return {
+                let issuesWithMetadata: IssueWithMetadata[] = [];
+                try {
+                    issuesWithMetadata = issuesWithLines.map((issue) => {
+                        const severity =
+                            issue.severity === 'critical' ||
+                            issue.severity === 'warning' ||
+                            issue.severity === 'suggestion'
+                                ? issue.severity
+                                : 'warning';
+                        const commentBody = buildIssueComment({
+                            ...issue,
+                            severity,
+                        });
+                        return {
+                            file: issue.file,
+                            line: issue.line,
+                            severity: issue.severity,
+                            description: issue.description,
+                            commentBody,
+                            diff: {
+                                oldCode: issue.oldCode || '',
+                                newCode: issue.newCode || '',
+                            },
+                        };
+                    });
+                } catch (metadataError) {
+                    logger.error({ metadataError }, 'Failed to create issues metadata, using fallback');
+                    issuesWithMetadata = issuesWithLines.map((issue) => ({
                         file: issue.file,
                         line: issue.line,
                         severity: issue.severity,
                         description: issue.description,
-                        commentBody,
+                        commentBody: `${issue.file}:${issue.line} - ${issue.description}`,
                         diff: {
                             oldCode: issue.oldCode || '',
                             newCode: issue.newCode || '',
                         },
-                    };
-                });
+                    }));
+                }
 
                 await prisma.review.update({
                     where: {

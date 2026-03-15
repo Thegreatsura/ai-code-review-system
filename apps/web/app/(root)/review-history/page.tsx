@@ -40,10 +40,15 @@ const ReviewHistoryPage = () => {
             </h3>
         ),
         p: ({ children }: MarkdownComponentProps) => (
-            <p className="text-[14px] font-mono leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30">
+            <p className="text-[14px] font-mono leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30 break-words">
                 {children}
             </p>
-        ),
+      ),
+      pre: ({ children }: MarkdownComponentProps) => (
+          <pre className="overflow-x-auto whitespace-pre-wrap  text-balance my-2 p-2 bg-neutral-900/50 rounded text-xs font-mono">
+              {children}
+          </pre>
+      ),
         code({ node, inline, className, children, ...restProps }: CodeComponentProps) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
@@ -79,7 +84,7 @@ const ReviewHistoryPage = () => {
                 </div>
             ) : (
                 <code
-                    className="px-1.5 py-0.5 rounded bg-neutral-800 text-orange-300 text-[13px] font-mono"
+                    className="px-1.5 py-0.5 rounded bg-neutral-800 text-orange-300 text-[13px] font-mono break-all"
                     {...restProps}
                 >
                     {children}
@@ -174,7 +179,7 @@ const ReviewHistoryPage = () => {
                                                         <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-500 group-hover/issue:text-amber-500">
                                                             {String(i + 1).padStart(2, '0')}
                                                         </div>
-                                                        <div className="flex-1">
+                                                        <div className="flex-1 overflow-x-auto">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm]}
                                                                 components={MarkdownComponents}
@@ -182,28 +187,30 @@ const ReviewHistoryPage = () => {
                                                                 {issue.commentBody}
                                                             </ReactMarkdown>
                                                             {(issue.diff.oldCode || issue.diff.newCode) && (
-                                                                <div className="mt-3 p-3 rounded bg-neutral-900/50 border border-neutral-800">
+                                                                <div className="mt-3 p-3 rounded bg-neutral-900/50 border border-neutral-800 overflow-x-auto">
                                                                     <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-2">
                                                                         Diff
                                                                     </div>
-                                                                    {issue.diff.oldCode &&
-                                                                        issue.diff.oldCode !== 'N/A' && (
-                                                                            <div className="text-red-400 font-mono text-xs mb-1">
-                                                                                <span className="text-neutral-500">
-                                                                                    -{' '}
-                                                                                </span>
-                                                                                {issue.diff.oldCode}
-                                                                            </div>
-                                                                        )}
-                                                                    {issue.diff.newCode &&
-                                                                        issue.diff.newCode !== 'N/A' && (
-                                                                            <div className="text-green-400 font-mono text-xs">
-                                                                                <span className="text-neutral-500">
-                                                                                    +{' '}
-                                                                                </span>
-                                                                                {issue.diff.newCode}
-                                                                            </div>
-                                                                        )}
+                                                                    <div className="font-mono text-xs whitespace-pre-wrap break-all">
+                                                                        {issue.diff.oldCode &&
+                                                                            issue.diff.oldCode !== 'N/A' && (
+                                                                                <div className="text-red-400 mb-1">
+                                                                                    <span className="text-neutral-500">
+                                                                                        -{' '}
+                                                                                    </span>
+                                                                                    {issue.diff.oldCode}
+                                                                                </div>
+                                                                            )}
+                                                                        {issue.diff.newCode &&
+                                                                            issue.diff.newCode !== 'N/A' && (
+                                                                                <div className="text-green-400">
+                                                                                    <span className="text-neutral-500">
+                                                                                        +{' '}
+                                                                                    </span>
+                                                                                    {issue.diff.newCode}
+                                                                                </div>
+                                                                            )}
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
