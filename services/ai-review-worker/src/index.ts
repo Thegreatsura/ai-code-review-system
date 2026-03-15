@@ -43,6 +43,33 @@ function findLineNumberInDiff(diff: string, file: string, code: string): number 
 
     return 1;
 }
+
+function buildIssueComment(issue: ReviewIssue & { line: number }): string {
+    const emoji = issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : '🔵';
+
+    const oldCode = issue.oldCode || 'N/A';
+    const newCode = issue.newCode || 'N/A';
+    const changeDisplay =
+        issue.oldCode && issue.newCode
+            ? `\`${oldCode}\` → \`${newCode}\``
+            : issue.oldCode
+              ? `Removed: \`${oldCode}\``
+              : `Added: \`${newCode}\``;
+
+    return `${emoji} **${issue.severity.toUpperCase()}** at ${issue.file}:${issue.line}\n\n${issue.description}\n\n**Change:** ${changeDisplay}\n\n**Suggestion:** ${issue.suggestion}`;
+}
+
+interface IssueWithMetadata {
+    file: string;
+    line: number;
+    severity: string;
+    description: string;
+    commentBody: string;
+    diff: {
+        oldCode: string;
+        newCode: string;
+    };
+}
 function createIssueHash(issue: ReviewIssue): string {
     return `${issue.file}:${issue.line}:${issue.description.substring(0, 50)}`;
 }
@@ -133,6 +160,21 @@ async function startConsumer(): Promise<void> {
                     'Sent issues and summary to Kafka',
                 );
 
+                const issuesWithMetadata: IssueWithMetadata[] = issuesWithLines.map((issue) => {
+                    const commentBody = buildIssueComment(issue);
+                    return {
+                        file: issue.file,
+                        line: issue.line,
+                        severity: issue.severity,
+                        description: issue.description,
+                        commentBody,
+                        diff: {
+                            oldCode: issue.oldCode || '',
+                            newCode: issue.newCode || '',
+                        },
+                    };
+                });
+
                 await prisma.review.update({
                     where: {
                         repositoryId_prNumber: {
@@ -143,7 +185,7 @@ async function startConsumer(): Promise<void> {
                     data: {
                         status: 'completed',
                         review: summaryMessage,
-                        issues: issuesWithLines.map((i) => `${i.file}:${i.line} - ${i.description}`),
+                        issues: issuesWithMetadata.map((i) => JSON.stringify(i)),
                     },
                 });
                 logger.info({ repoId, prNumber }, 'Updated review status to completed');
