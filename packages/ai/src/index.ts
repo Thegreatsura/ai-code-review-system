@@ -65,8 +65,8 @@ Analyze the changes and return a JSON object with the following structure:
       "file": "filename.ts",
       "severity": "critical|warning|suggestion",
       "description": "What's wrong - be specific and concise",
-      "oldCode": "exact code that was removed (leave empty if new code only), format as \`\`\`ts\\ncode here\\n\`\`\`",
-      "newCode": "exact code that was added (leave empty if removal only), format as \`\`\`ts\\ncode here\\n\`\`\`",
+      "oldCode": "exact code that was removed (plain code, no markdown fences)",
+      "newCode": "exact code that was added (plain code, no markdown fences)",
       "suggestion": "how to fix it - be specific"
     }
   ],
