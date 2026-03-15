@@ -47,7 +47,7 @@ const ReviewHistoryPage = () => {
       </h3>
     ),
     p: ({ children }: MarkdownComponentProps) => (
-      <p className="text-[14px] leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30">
+      <p className="text-[14px] font-mono leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30">
         {children}
       </p>
     ),
@@ -94,7 +94,7 @@ const ReviewHistoryPage = () => {
     li: ({ children }: MarkdownComponentProps) => (
       <li className="flex gap-3 text-sm text-neutral-400">
         <ArrowRight size={14} className="text-orange-500/50 mt-1 shrink-0" />
-        <span>{children}</span>
+        <span className='font-mono'>{children}</span>
       </li>
     ),
   };
@@ -117,9 +117,9 @@ const ReviewHistoryPage = () => {
             <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Review Archive</span>
           </div>
-          <h1 className="text-4xl font-medium tracking-tight text-white mb-4">Pipeline History</h1>
+          <h1 className="text-4xl font-medium tracking-tight text-white mb-4">Review History</h1>
           <p className="text-neutral-500 font-mono text-xs tracking-tight uppercase opacity-60">
-            System version 3.7.0 — Production Environment
+            List of all your PR on your Production Environment
           </p>
         </header>
 
@@ -140,7 +140,7 @@ const ReviewHistoryPage = () => {
                       <span className="text-neutral-700">/</span>
                       <div className="flex items-center gap-2">
                         <GitPullRequest size={14} className="text-blue-500" />
-                        <span className="text-sm font-medium text-neutral-200">PR #{review.prNumber}: {review.prTitle}</span>
+                        <span className="text-xs font-medium text-neutral-200 font-mono">PR #{review.prNumber}: {review.prTitle}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-[11px] font-mono text-neutral-500">
