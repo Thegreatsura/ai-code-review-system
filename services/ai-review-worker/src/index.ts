@@ -185,7 +185,7 @@ async function startWorker(): Promise<void> {
                 create: {
                     repositoryId: repoId,
                     prNumber,
-                    prTitle: 'Review',
+                    prTitle: title,
                     prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
                     status: 'completed',
                     review: summaryMessage,
@@ -215,6 +215,8 @@ async function startWorker(): Promise<void> {
                     create: {
                         repositoryId: repoId,
                         prNumber,
+                        prTitle: title,
+                        prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
                         status: 'failed',
                         review: '',
                         issues: [],
