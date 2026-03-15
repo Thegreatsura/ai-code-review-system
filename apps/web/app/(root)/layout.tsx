@@ -1,23 +1,19 @@
-import { Navbar } from "@/components/globals/Navbar";
-import { Sidebar } from "@/components/globals/Sidebar";
+import { Navbar } from '@/components/globals/Navbar';
+import { Sidebar } from '@/components/globals/Sidebar';
 
 export default function RootLayout({
-	children,
+    children,
 }: Readonly<{
-	children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-	return (
-		<div className="flex h-screen w-full overflow-hidden">
-			<Sidebar />
+    return (
+        <div className="flex h-screen w-full overflow-hidden">
+            <Sidebar />
 
-			<div
-				className="flex flex-col flex-1 min-w-0"
-				style={{ background: "#0a0a0c" }}
-			>
-				<Navbar />
-
-				{children}
-			</div>
-		</div>
-	);
+            <div className="flex flex-col flex-1 min-w-0 h-dvh" style={{ background: '#0a0a0c' }}>
+                <Navbar />
+                <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+            </div>
+        </div>
+    );
 }

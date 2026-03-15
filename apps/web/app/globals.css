@@ -146,3 +146,10 @@ body {
 button {
     cursor: pointer;
 }
+
+[data-sd-root] pre {
+    background-color: #737373 !important;
+    color: black !important;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}

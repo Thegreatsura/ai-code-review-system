@@ -23,7 +23,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/github', authMiddleware, githubRoutes);
-app.use('/api/reviews', authMiddleware, reviewRoutes);
+app.use('/api/review', authMiddleware, reviewRoutes);
 
 async function start() {
     try {
