@@ -173,14 +173,23 @@ async function startWorker(): Promise<void> {
                 }));
             }
 
-            await prisma.review.update({
+            await prisma.review.upsert({
                 where: {
                     repositoryId_prNumber: {
                         repositoryId: repoId,
                         prNumber,
                     },
                 },
-                data: {
+                create: {
+                    repositoryId: repoId,
+                    prNumber,
+                    prTitle: 'Review',
+                    prUrl: `https://github.com/${owner}/${repo}/pull/${prNumber}`,
+                    status: 'completed',
+                    review: summaryMessage,
+                    issues: issuesWithMetadata.map((i) => JSON.stringify(i)),
+                },
+                update: {
                     status: 'completed',
                     review: summaryMessage,
                     issues: issuesWithMetadata.map((i) => JSON.stringify(i)),
@@ -194,14 +203,21 @@ async function startWorker(): Promise<void> {
             );
 
             await prisma.review
-                .update({
+                .upsert({
                     where: {
                         repositoryId_prNumber: {
                             repositoryId: repoId,
                             prNumber,
                         },
                     },
-                    data: {
+                    create: {
+                        repositoryId: repoId,
+                        prNumber,
+                        status: 'failed',
+                        review: '',
+                        issues: [],
+                    },
+                    update: {
                         status: 'failed',
                     },
                 })
