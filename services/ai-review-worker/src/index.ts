@@ -21,12 +21,16 @@ interface AIReviewMessage {
     userId: string;
     commitSha: string;
 }
+function stripMarkdownFences(code: string): string {
+    return code.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
+}
 
-function findLineNumberInDiff(diff: string, file: string, code: string): number {
+function findLineNumberInDiff(diff: string, file: string, code: string): number | null {
+    const cleanCode = stripMarkdownFences(code);
+    const searchCode = cleanCode.substring(0, 30).trim();
     const lines = diff.split('\n');
     let currentFile = '';
     let hunkStartLine = 0;
-    const searchCode = code.substring(0, 30).trim();
 
     for (const line of lines) {
         if (line.startsWith('diff --git')) {
@@ -42,7 +46,7 @@ function findLineNumberInDiff(diff: string, file: string, code: string): number 
         }
     }
 
-    return 1;
+    return null;
 }
 
 function buildIssueComment(issue: ReviewIssue & { line: number }): string {
@@ -115,13 +119,12 @@ async function startConsumer(): Promise<void> {
 
                 const uniqueIssues = deduplicateIssues(review.issues);
 
-                const issuesWithLines = uniqueIssues.map((issue) => {
-                    const resolvedLine = findLineNumberInDiff(diff, issue.file, issue.newCode || issue.oldCode);
-                    return {
-                        ...issue,
-                        line: resolvedLine,
-                    };
-                });
+                const issuesWithLines = uniqueIssues
+                    .map((issue) => {
+                        const line = findLineNumberInDiff(diff, issue.file, issue.newCode || issue.oldCode);
+                        return line !== null ? { ...issue, line } : null;
+                    })
+                    .filter((issue): issue is NonNullable<typeof issue> => issue !== null);
 
                 logger.info(
                     { repoId, prNumber, totalIssues: review.issues.length, uniqueIssues: uniqueIssues.length },
