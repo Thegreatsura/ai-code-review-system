@@ -43,17 +43,19 @@ const ReviewHistoryPage = () => {
             <p className="text-[14px] font-mono leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30 break-words">
                 {children}
             </p>
-      ),
-      pre: ({ children }: MarkdownComponentProps) => (
-          <pre className="overflow-x-auto whitespace-pre-wrap  text-balance my-2 p-2 bg-neutral-900/50 rounded text-xs font-mono">
-              {children}
-          </pre>
-      ),
+        ),
+        pre: ({ children }: MarkdownComponentProps) => (
+            // Removed text-balance which can cause weird wrapping in code blocks
+            <pre className="overflow-x-auto whitespace-pre-wrap my-2 p-2 rounded text-xs font-mono">
+                {children}
+            </pre>
+        ),
         code({ node, inline, className, children, ...restProps }: CodeComponentProps) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
-                <div className="my-6 rounded-lg border border-neutral-800 overflow-hidden bg-[#0D0D0D]">
-                    <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/50 border-b border-neutral-800">
+                // Added min-w-0 and changed overflow-hidden to overflow-x-auto to ensure accessibility
+                <div className="my-6 rounded-lg border border-neutral-800 overflow-x-auto min-w-0">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800 sticky left-0">
                         <div className="flex items-center gap-2">
                             <FileCode2 size={12} className="text-neutral-500" />
                             <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
@@ -70,6 +72,7 @@ const ReviewHistoryPage = () => {
                         style={vscDarkPlus}
                         language={match[1]}
                         PreTag="div"
+                        wrapLongLines={true} // FIX: Ensures long lines wrap instead of pushing the container
                         customStyle={{
                             margin: 0,
                             padding: '1.25rem',
@@ -96,7 +99,7 @@ const ReviewHistoryPage = () => {
         li: ({ children }: MarkdownComponentProps) => (
             <li className="flex gap-3 text-sm text-neutral-400">
                 <ArrowRight size={14} className="text-orange-500/50 mt-1 shrink-0" />
-                <span className="font-mono">{children}</span>
+                <span className="font-mono min-w-0 flex-1">{children}</span>
             </li>
         ),
     };
@@ -134,17 +137,17 @@ const ReviewHistoryPage = () => {
                 ) : (
                     <div className="space-y-24">
                         {reviews?.map((review) => (
-                            <section key={review.id} className="relative">
+                            <section key={review.id} className="relative max-w-full overflow-hidden">
                                 <div className="flex flex-wrap items-center justify-between gap-4 px-1 mb-3">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2 text-neutral-400">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <div className="flex items-center gap-2 text-neutral-400 shrink-0">
                                             <Github size={14} />
                                             <span className="text-xs font-mono">{review.repository.fullName}</span>
                                         </div>
-                                        <span className="text-neutral-700">/</span>
-                                        <div className="flex items-center gap-2">
-                                            <GitPullRequest size={14} className="text-blue-500" />
-                                            <span className="text-xs font-medium text-neutral-200 font-mono">
+                                        <span className="text-neutral-700 shrink-0">/</span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <GitPullRequest size={14} className="text-blue-500 shrink-0" />
+                                            <span className="text-xs font-medium text-neutral-200 font-mono truncate">
                                                 PR #{review.prNumber}: {review.prTitle}
                                             </span>
                                         </div>
@@ -159,27 +162,29 @@ const ReviewHistoryPage = () => {
                                             />
                                             {review.status.toUpperCase()}
                                         </div>
-                                        <span className="flex items-center gap-1.5">
+                                        <span className="flex items-center gap-1.5 whitespace-nowrap">
                                             <Calendar size={12} />
                                             {formatDate(review.createdAt)}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="bg-[#0A0A0A] border border-neutral-800/60 rounded-xl p-8 shadow-2xl">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
-                                        {review.review}
-                                    </ReactMarkdown>
+                                <div className="bg-[#0A0A0A] border border-neutral-800/60 rounded-xl p-4 md:p-8 shadow-2xl overflow-hidden">
+                                    <div className="prose-neutral max-w-full overflow-hidden">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
+                                            {review.review}
+                                        </ReactMarkdown>
+                                    </div>
 
                                     {review.issues && review.issues.length > 0 && (
                                         <div className="mt-6 pt-2 border-t border-neutral-900">
                                             <div className="grid gap-3">
                                                 {review.issues.map((issue: IssueWithMetadata, i: number) => (
-                                                    <div key={i} className="p-4 flex gap-2">
-                                                        <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-500 group-hover/issue:text-amber-500">
+                                                    <div key={i} className="p-4 flex gap-2 min-w-0">
+                                                        <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-500">
                                                             {String(i + 1).padStart(2, '0')}
                                                         </div>
-                                                        <div className="flex-1 overflow-x-auto">
+                                                        <div className="flex-1 min-w-0">
                                                             <ReactMarkdown
                                                                 remarkPlugins={[remarkGfm]}
                                                                 components={MarkdownComponents}
@@ -187,27 +192,27 @@ const ReviewHistoryPage = () => {
                                                                 {issue.commentBody}
                                                             </ReactMarkdown>
                                                             {(issue.diff.oldCode || issue.diff.newCode) && (
-                                                                <div className="mt-3 p-3 rounded bg-neutral-900/50 border border-neutral-800 overflow-x-auto">
-                                                                    <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-2">
+                                                                <div className="mt-3 p-3 rounded bg-neutral-900/50 border border-neutral-800 overflow-x-auto max-w-full">
+                                                                    <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-2 sticky left-0">
                                                                         Diff
                                                                     </div>
-                                                                    <div className="font-mono text-xs whitespace-pre-wrap break-all">
+                                                                    <div className="font-mono text-xs whitespace-pre-wrap break-words">
                                                                         {issue.diff.oldCode &&
                                                                             issue.diff.oldCode !== 'N/A' && (
-                                                                                <div className="text-red-400 mb-1">
-                                                                                    <span className="text-neutral-500">
-                                                                                        -{' '}
+                                                                                <div className="text-red-400 mb-1 flex gap-2">
+                                                                                    <span className="text-neutral-500 shrink-0">
+                                                                                        -
                                                                                     </span>
-                                                                                    {issue.diff.oldCode}
+                                                                                    <span className="break-all">{issue.diff.oldCode}</span>
                                                                                 </div>
                                                                             )}
                                                                         {issue.diff.newCode &&
                                                                             issue.diff.newCode !== 'N/A' && (
-                                                                                <div className="text-green-400">
-                                                                                    <span className="text-neutral-500">
-                                                                                        +{' '}
+                                                                                <div className="text-green-400 flex gap-2">
+                                                                                    <span className="text-neutral-500 shrink-0">
+                                                                                        +
                                                                                     </span>
-                                                                                    {issue.diff.newCode}
+                                                                                    <span className="break-all">{issue.diff.newCode}</span>
                                                                                 </div>
                                                                             )}
                                                                     </div>
