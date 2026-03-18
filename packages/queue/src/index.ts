@@ -1,12 +1,21 @@
+import { type ConnectionOptions } from 'bullmq';
 import { type JobsOptions, type Processor, Queue, Worker } from 'bullmq';
 
-const createConnection = () => {
-    const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
-    const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379');
+const createConnection = (): ConnectionOptions => {
+    const REDIS_URL = process.env.REDIS_URL;
+
+    if (REDIS_URL) {
+        return {
+            url: REDIS_URL,
+            tls: { rejectUnauthorized: false },
+            maxRetriesPerRequest: null,
+        };
+    }
 
     return {
-        host: REDIS_HOST,
-        port: REDIS_PORT,
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        maxRetriesPerRequest: null,
     };
 };
 
