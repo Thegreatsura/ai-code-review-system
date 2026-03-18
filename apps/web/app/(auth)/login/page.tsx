@@ -1,9 +1,10 @@
 'use client';
 
+import { ChevronLeft } from 'lucide-react';
 import { Red_Hat_Display } from 'next/font/google';
 import Image from 'next/image';
+import Link from 'next/link';
 import { signIn } from '@/lib/auth-client';
-import { AuthLayout } from './_components/auth-layout';
 
 const redhat = Red_Hat_Display({
     variable: '--font-red-hat',
@@ -11,12 +12,6 @@ const redhat = Red_Hat_Display({
 });
 
 const SignInPage = () => {
-    const avatars = [
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=James',
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-    ];
     const date = new Date();
     const currentYear = date.getFullYear();
     return (
@@ -27,6 +22,13 @@ const SignInPage = () => {
             <div className="min-h-0 flex-1 w-full max-w-5xl mx-auto border-x border-neutral-500/20 p-6 grid grid-cols-2 gap-5">
                 <div className="col-span-1 h-full flex flex-col justify-between py-3">
                     <div className="flex flex-col gap-10">
+                        <Link
+                            href={'/'}
+                            className="flex items-center gap-1 pr-2 transition-colors ease-in-out duration-150 pr-3 py-2 text-neutral-500 hover:text-white w-fit text-sm font-medium"
+                        >
+                            <ChevronLeft size={16} className="" />
+                            Back
+                        </Link>
                         <header className="space-y-1">
                             <h1 className="text-2xl font-semibold tracking-tight text-white">
                                 Open{' '}
