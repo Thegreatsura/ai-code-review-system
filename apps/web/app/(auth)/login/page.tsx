@@ -95,9 +95,30 @@ const SignInPage = () => {
                         height={1000}
                         className="w-full h-full object-cover"
                     />
+                    <div
+                        className="absolute inset-0 w-full h-full z-2 pointer-events-none"
+                        style={{
+                            WebkitMaskImage: 'linear-gradient(to top, black, transparent)',
+                            maskImage: 'linear-gradient(to top, black, transparent)',
+                        }}
+                    />
+                    <div className="absolute inset-0 z-9 w-full h-full pointer-events-none flex flex-col justify-end p-6">
+                        <div className="max-w-xs">
+                            <p className="text-orange-500 font-mono text-xs mb-2 tracking-tighter">Open Review</p>
+                            <h3 className="text-white text-3xl font-bold tracking-tight mb-4">
+                                Automate the <span className="text-orange-500">Tedious.</span> <br />
+                                Focus on the <span className="text-orange-500">Creative.</span>
+                            </h3>
+                            <div className="h-px w-12 bg-orange-500/50 mb-4" />
+                            <p className="text-zinc-300 text-sm leading-relaxed">
+                                Join the next generation of engineers shipping high-integrity code without the manual
+                                overhead.
+                            </p>
+                        </div>
+                    </div>
 
                     <div
-                        className="absolute inset-0 w-full h-full backdrop-blur-[5px] pointer-events-none"
+                        className="absolute inset-0 w-full h-full backdrop-blur-[5px] pointer-events-none flex flex-col justify-end p-12"
                         style={{
                             WebkitMaskImage: 'linear-gradient(to top, black, transparent)',
                             maskImage: 'linear-gradient(to top, black, transparent)',
