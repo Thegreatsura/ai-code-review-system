@@ -8,9 +8,11 @@ import { githubRoutes, reviewRoutes } from './modules/index.js';
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+
 app.use(
     cors({
-        origin: ['http://localhost:3000'],
+        origin: allowedOrigins,
         credentials: true,
     }),
 );
