@@ -147,14 +147,19 @@ async function startWorker(): Promise<void> {
 
             const diffFiles = extractFilesFromDiff(diff);
 
-            const issuesWithLines = uniqueIssues
-                .filter((issue) => {
-                    if (!diffFiles.has(issue.file)) {
-                        logger.warn({ file: issue.file }, 'Skipping issue: file not found in diff');
-                        return false;
-                    }
+            const inDiffIssues = uniqueIssues.filter((issue) => diffFiles.has(issue.file));
+            const outOfDiffIssues = uniqueIssues.filter((issue) => {
+                if (!diffFiles.has(issue.file)) {
+                    logger.info(
+                        { file: issue.file },
+                        'Issue refers to a file not in the diff — will include in summary instead of inline comment',
+                    );
                     return true;
-                })
+                }
+                return false;
+            });
+
+            const issuesWithLines = inDiffIssues
                 .map((issue) => {
                     const diffLine = findLineNumberInDiff(diff, issue.file, issue.newCode || issue.oldCode);
                     const line = diffLine !== null ? diffLine : issue.line;
@@ -177,13 +182,25 @@ async function startWorker(): Promise<void> {
                 'Deduplicated and resolved line numbers for issues',
             );
 
-            const summaryMessage = `## Code Review Summary\n\n${review.summary}\n\n### Strengths\n${review.strengths}\n\n### Issues Found: ${uniqueIssues.length}`;
-
+            const outOfDiffSection =
+                outOfDiffIssues.length > 0
+                    ? `\n\n### Related Issues (files not directly changed)\n${outOfDiffIssues
+                          .map((issue) => {
+                              const emoji =
+                                  issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : '🔵';
+                              return `- ${emoji} **${issue.severity.toUpperCase()}** \`${issue.file}\`: ${issue.description}\n  > **Suggestion:** ${issue.suggestion}`;
+                          })
+                          .join('\n')}`
+                    : '';
+            const summaryMessage =
+                `## Code Review Summary\n\n${review.summary}\n\n### Strengths\n${review.strengths}\n\n` +
+                `### Issues Found: ${uniqueIssues.length} (${issuesWithLines.length} inline, ${outOfDiffIssues.length} in related files)` +
+                outOfDiffSection;
             await addJob(issuesQueue, 'pr-issues', {
                 owner,
                 repo,
                 prNumber,
-                installationId, // ✅ was userId
+                installationId,
                 commitSha,
                 issues: issuesWithLines,
                 summary: summaryMessage,
