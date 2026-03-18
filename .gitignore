@@ -21,6 +21,10 @@ yarn-error.log*
 # env files
 .env*
 
+# build output
+dist
+.next
+
 # typescript
 *.tsbuildinfo
 
