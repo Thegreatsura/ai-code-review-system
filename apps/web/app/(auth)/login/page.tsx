@@ -55,7 +55,9 @@ const SignInPage = () => {
                         </div>
                         <div className="flex flex-col gap-5">
                             <h2 className="text-white text-4xl font-bold leading-[1.1]">
-                                Your Code Is Ready.
+                                Your{' '}
+                                <span className="font-bold text-black rounded px-2 text-3xl bg-orange-500">Code</span>{' '}
+                                Is Ready.
                                 <br /> Ship Better Code, Faster.
                             </h2>
                             <p className="text-zinc-400 text-sm">
@@ -83,8 +85,22 @@ const SignInPage = () => {
                         <p className="text-zinc-500 text-sm">© {currentYear} Open Review. All rights reserved.</p>
                     </footer>
                 </div>
-                <div className="col-span-1 w-full h-full  rounded-2xl overflow-hidden">
-                    <Image alt="auth" src="/images/auth.webp" width={600} height={1000} className="w-full h-full" />
+                <div className="relative col-span-1 w-full h-full rounded-2xl overflow-hidden">
+                    <Image
+                        alt="auth"
+                        src="/images/auth.webp"
+                        width={600}
+                        height={1000}
+                        className="w-full h-full object-cover"
+                    />
+
+                    <div
+                        className="absolute inset-0 w-full h-full backdrop-blur-[5px] pointer-events-none"
+                        style={{
+                            WebkitMaskImage: 'linear-gradient(to top, black, transparent)',
+                            maskImage: 'linear-gradient(to top, black, transparent)',
+                        }}
+                    />
                 </div>
             </div>
             <div className="h-16 w-full border-t border-neutral-500/20 flex justify-center">
