@@ -40,23 +40,17 @@ const SignInPage = () => {
                             </p>
                         </header>
                         <div className="flex items-center gap-4 w-fit">
-                            <div className="flex items-center bg-[#151515] border border-zinc-800 rounded-full px-2 py-1.5">
-                                <div className="flex -space-x-3">
-                                    {avatars.map((url, i) => (
-                                        <img
-                                            key={i}
-                                            src={url}
-                                            alt="User"
-                                            className="w-8 h-8 rounded-full border-2 border-[#151515] object-cover bg-zinc-700"
-                                        />
-                                    ))}
-                                    <div className="w-8 h-8 rounded-full border-2 border-[#151515] bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
-                                        +
-                                    </div>
+                            <div className="flex items-center bg-[#151515] border border-orange-500/30 rounded-full px-3 py-1">
+                                <div className="relative flex h-2 w-2 mr-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
                                 </div>
+                                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest">
+                                    Early Access
+                                </span>
                             </div>
                             <p className="text-zinc-400 text-sm">
-                                Become one of <span className="font-bold text-white">4000+</span> happy users
+                                Be one of the first <span className="font-bold text-white">100</span> founding users.
                             </p>
                         </div>
                         <div className="flex flex-col gap-5">
