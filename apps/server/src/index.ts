@@ -8,7 +8,7 @@ import { githubRoutes, reviewRoutes } from './modules/index.js';
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'https://ai-code-review-system-auqo.onrender.com'];
 
 app.use(
     cors({
