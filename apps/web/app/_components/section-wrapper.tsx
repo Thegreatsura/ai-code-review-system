@@ -1,4 +1,4 @@
-import { GitBranch } from 'lucide-react';
+import { GitBranch, type LucideIcon, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { DitherImage } from '@/components/globals/dither-image';
 
@@ -8,9 +8,10 @@ type Props = {
     subtitle: string;
     description: string;
     link: string;
+    icon: LucideIcon;
 };
 
-export const SectionWrapper = ({ src, title, subtitle, description, link }: Props) => {
+export const SectionWrapper = ({ src, title, subtitle, description, link, icon: Icon }: Props) => {
     return (
         <div className="flex h-dvh items-center w-full">
             <div className="grid flex-1 relative gap-2 grid-cols-2 border-y border-neutral-500/20 h-137.5">
@@ -29,7 +30,7 @@ export const SectionWrapper = ({ src, title, subtitle, description, link }: Prop
                 </div>
                 <div className="bg-[#121212] flex flex-col justify-center p-16 gap-6">
                     <div className="flex items-center gap-1 text-neutral-500 text-xs">
-                        <GitBranch size={12} />
+                        <Icon size={12} />
                         <span className="text-neutral-500 text-xs uppercase font-medium">{subtitle}</span>
                     </div>
                     <h1 className="text-white text-5xl font-medium text-balance">{title}</h1>

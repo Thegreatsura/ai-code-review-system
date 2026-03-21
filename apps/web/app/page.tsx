@@ -1,5 +1,6 @@
 'use client';
 
+import { GitBranch, Settings } from 'lucide-react';
 import { Red_Hat_Display } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { HeroSection } from './_components/hero';
@@ -33,6 +34,7 @@ const HomePage = () => {
             projects."
                     src="/images/repo-list.png"
                     link="/repositories"
+                    icon={GitBranch}
                 />
                 <SectionWrapper
                     subtitle="Review History"
@@ -41,7 +43,9 @@ const HomePage = () => {
                     description="Review past code changes, see feedback provided, and track improvement over time across all your
             repositories."
                     link="/review-history"
+                    icon={Settings}
                 />
+                <div className="h-dvh w-full" />
             </div>
         </div>
     );
