@@ -27,24 +27,30 @@ const HomePage = () => {
             <div className="w-full max-w-325 mx-auto border-x border-neutral-500/20  flex flex-col">
                 <HeroSection />
                 <Separator />
-                <SectionWrapper
-                    subtitle="Repository"
-                    title="View and manage all your repositories"
-                    description="Connect repositories to get AI-powered code reviews and automated quality checks for your
+                <div className="relative h-[200dvh]">
+                    <div className="left-0 w-full h-dvh sticky top-16 z-20">
+                        <SectionWrapper
+                            subtitle="Repository"
+                            title="View and manage all your repositories"
+                            description="Connect repositories to get AI-powered code reviews and automated quality checks for your
             projects."
-                    src="/images/repo-list.png"
-                    link="/repositories"
-                    icon={GitBranch}
-                />
-                <SectionWrapper
-                    subtitle="Review History"
-                    title="Track all your code reviews in one place"
-                    src="/images/review.png"
-                    description="Review past code changes, see feedback provided, and track improvement over time across all your
+                            src="/images/repo-list.png"
+                            link="/repositories"
+                            icon={GitBranch}
+                        />
+                    </div>
+                    <div className="left-0 w-full h-dvh sticky top-16 z-30">
+                        <SectionWrapper
+                            subtitle="Review History"
+                            title="Track all your code reviews in one place"
+                            src="/images/review.png"
+                            description="Review past code changes, see feedback provided, and track improvement over time across all your
             repositories."
-                    link="/review-history"
-                    icon={Settings}
-                />
+                            link="/review-history"
+                            icon={Settings}
+                        />
+                    </div>
+                </div>
                 <div className="h-dvh w-full" />
             </div>
         </div>
