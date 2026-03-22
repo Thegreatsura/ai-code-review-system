@@ -30,7 +30,6 @@ const ReviewHistoryPage = () => {
                 <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-neutral-200 font-mono">
                     {children}
                 </h2>
-                <div className="h-px flex-1 bg-neutral-800 ml-2" />
             </div>
         ),
         h3: ({ children }: MarkdownComponentProps) => (
@@ -45,7 +44,7 @@ const ReviewHistoryPage = () => {
             </p>
         ),
         pre: ({ children }: MarkdownComponentProps) => (
-            // Removed text-balance which can cause weird wrapping in code blocks
+
             <pre className="overflow-x-auto whitespace-pre-wrap my-2 p-2 rounded text-xs font-mono">
                 {children}
             </pre>
@@ -53,7 +52,7 @@ const ReviewHistoryPage = () => {
         code({ node, inline, className, children, ...restProps }: CodeComponentProps) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
-                // Added min-w-0 and changed overflow-hidden to overflow-x-auto to ensure accessibility
+
                 <div className="my-6 rounded-lg border border-neutral-800 overflow-x-auto min-w-0">
                     <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800 sticky left-0">
                         <div className="flex items-center gap-2">
@@ -68,11 +67,11 @@ const ReviewHistoryPage = () => {
                         </div>
                     </div>
                     <SyntaxHighlighter
-                        // @ts-expect-error - customStyle type mismatch in library types
+                         // @ts-expect-error - customStyle type mismatch in library types
                         style={vscDarkPlus}
                         language={match[1]}
                         PreTag="div"
-                        wrapLongLines={true} // FIX: Ensures long lines wrap instead of pushing the container
+                        wrapLongLines={true}
                         customStyle={{
                             margin: 0,
                             padding: '1.25rem',
@@ -137,8 +136,9 @@ const ReviewHistoryPage = () => {
                 ) : (
                     <div className="space-y-24">
                         {reviews?.map((review) => (
-                            <section key={review.id} className="relative max-w-full overflow-hidden">
-                                <div className="flex flex-wrap items-center justify-between gap-4 px-1 mb-3">
+                          <section key={review.id} className="relative max-w-full overflow-hidden">
+                            <div className='shadow-[0px_0.75px_0px_0px_rgba(255,252,252,0.3)_inset,0px_1px_5px_0px_rgba(0,0,0,0.75)] cursor-pointer transition-colors ease-in-out duration-200 border border-black rounded-lg gap-3 px-3 py-4 mb-4 bg-linear-to-b from-[#383838]/70 to-[#292929] hover:from-[#444444]/70'>
+                                <div className="flex flex-col gap-4 px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="flex items-center gap-2 text-neutral-400 shrink-0">
                                             <Github size={14} />
@@ -153,7 +153,7 @@ const ReviewHistoryPage = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4 text-[11px] font-mono text-neutral-500">
-                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-neutral-800 bg-neutral-900/50">
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-black bg-neutral-900/50">
                                             <div
                                                 className={cn(
                                                     'w-1.5 h-1.5 rounded-full',
@@ -168,8 +168,8 @@ const ReviewHistoryPage = () => {
                                         </span>
                                     </div>
                                 </div>
-
-                                <div className="bg-[#0A0A0A] border border-neutral-800/60 rounded-xl p-4 md:p-8 shadow-2xl overflow-hidden">
+                            </div>
+                                <div className="bg-[#0A0A0A] border border-neutral-800/60 rounded-lg p-4 md:p-8 shadow-2xl overflow-hidden">
                                     <div className="prose-neutral max-w-full overflow-hidden">
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
                                             {review.review}
