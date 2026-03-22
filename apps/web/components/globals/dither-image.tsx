@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useRef } from 'react';
 
 function clamp(x: number, min: number, max: number): number {
@@ -93,10 +95,13 @@ export function DitherImage({
     style = {},
 }: DitherImageProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const procRef = useRef<HTMLCanvasElement>(document.createElement('canvas'));
+    const procRef = useRef<HTMLCanvasElement | null>(null);
 
     useEffect(() => {
         if (!src) return;
+        if (!procRef.current) {
+            procRef.current = document.createElement('canvas');
+        }
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!canvas || !ctx) return;
@@ -116,9 +121,11 @@ export function DitherImage({
             const procH = Math.round(ih * scale);
 
             const proc = procRef.current;
+            if (!proc) return;
             proc.width = procW;
             proc.height = procH;
             const procCtx = proc.getContext('2d')!;
+            if (!procCtx) return;
             procCtx.imageSmoothingEnabled = false;
             ditherImage(imgEl, procCtx, procW, procH, Q, grayscale, brightness);
 
@@ -126,7 +133,9 @@ export function DitherImage({
             canvas.height = procH * px;
             ctx.imageSmoothingEnabled = false;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(proc, 0, 0, procW, procH, 0, 0, procW * px, procH * px);
+            if (proc) {
+                ctx.drawImage(proc, 0, 0, procW, procH, 0, 0, procW * px, procH * px);
+            }
         };
 
         imgEl.onerror = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
