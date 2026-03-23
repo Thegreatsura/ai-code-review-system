@@ -120,7 +120,20 @@ function DetailModal({ event, onClose }: { event: ReviewEvent; onClose: () => vo
 }
 
 export function ReviewTimeline({ reviewId }: { reviewId: string }) {
-    const { events, isConnected } = useReviewEvents({ reviewId });
+    const { events, isConnected, isLoading } = useReviewEvents({ reviewId, fetchSavedEvents: true });
+
+    if (isLoading) {
+        return (
+            <div className="py-12 text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-800 bg-neutral-900/50 mb-4">
+                    <div className="w-2 h-2 rounded-full bg-neutral-600 animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                        Loading saved events...
+                    </span>
+                </div>
+            </div>
+        );
+    }
 
     if (events.length === 0 && !isConnected) {
         return (

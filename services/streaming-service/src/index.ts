@@ -4,6 +4,8 @@ import { createPubSub } from '@repo/redis';
 import cors from 'cors';
 import express from 'express';
 import type { Server as HttpServer } from 'http';
+import { authenticateUser } from './middleware/auth.js';
+import { authorizeReviewAccess } from './middleware/authorize.js';
 
 const EVENTS_CHANNEL_PREFIX = 'review-events:';
 
@@ -60,8 +62,8 @@ app.get('/health', (_req, res) => {
     res.json({ status: 'ok', clients: clients.size });
 });
 
-app.get('/stream/:reviewId', (req, res) => {
-    const { reviewId } = req.params;
+app.get('/stream/:reviewId', authenticateUser, authorizeReviewAccess, (req, res) => {
+    const reviewId = req.params.reviewId as string;
 
     if (!reviewId) {
         res.status(400).json({ error: 'Review ID required' });

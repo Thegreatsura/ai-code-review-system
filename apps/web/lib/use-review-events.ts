@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchReviewEvents, type ReviewEventItem } from './review';
 
 export interface ReviewEvent {
     reviewId: string;
@@ -20,14 +21,57 @@ interface UseReviewEventsOptions {
     onEvent?: (event: ReviewEvent) => void;
     onError?: (error: Event) => void;
     onConnect?: () => void;
+    fetchSavedEvents?: boolean;
 }
 
-export function useReviewEvents({ reviewId, onEvent, onError, onConnect }: UseReviewEventsOptions) {
+export function useReviewEvents({
+    reviewId,
+    onEvent,
+    onError,
+    onConnect,
+    fetchSavedEvents = false,
+}: UseReviewEventsOptions) {
     const [events, setEvents] = useState<ReviewEvent[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [isLoading, setIsLoading] = useState(fetchSavedEvents);
     const [error, setError] = useState<string | null>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const savedEventIdsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (!fetchSavedEvents || !reviewId) {
+            setIsLoading(false);
+            return;
+        }
+
+        const loadSavedEvents = async () => {
+            try {
+                const savedEvents = await fetchReviewEvents(reviewId);
+                savedEventIdsRef.current = new Set(savedEvents.map((e: ReviewEventItem) => e.id));
+
+                const mappedEvents: ReviewEvent[] = savedEvents.map((e: ReviewEventItem) => ({
+                    reviewId: e.reviewId,
+                    type: e.type,
+                    queueName: e.queueName || '',
+                    stage: e.stage || '',
+                    status: e.status as 'pending' | 'success' | 'error',
+                    message: e.message,
+                    details: e.details ? JSON.parse(e.details) : undefined,
+                    timestamp: new Date(e.createdAt).toISOString(),
+                }));
+
+                setEvents(mappedEvents);
+                mappedEvents.forEach((e) => onEvent?.(e));
+            } catch (err) {
+                console.error('Failed to fetch saved events:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadSavedEvents();
+    }, [fetchSavedEvents, reviewId, onEvent]);
 
     const connect = useCallback(() => {
         if (!reviewId) return;
@@ -96,6 +140,7 @@ export function useReviewEvents({ reviewId, onEvent, onError, onConnect }: UseRe
     return {
         events,
         isConnected,
+        isLoading,
         error,
         clearEvents: () => setEvents([]),
     };
