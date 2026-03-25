@@ -3,6 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown } from 'lucide-react';
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react';
+import type { Components } from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import type { ReviewHistoryItem } from '@/lib/review';
 import { fetchReviewById } from '@/lib/review';
 import type { ReviewEvent } from '@/lib/use-review-events';
 import { useReviewEvents } from '@/lib/use-review-events';
@@ -123,7 +128,150 @@ export const ReviewContent = ({ id }: Props) => {
                         <MemoizedEventDetails selectedEvent={selectedEvent} />
                     </Suspense>
                 </div>
-                <div className="px-4 py-2"></div>
+                <PReviewAndIssues review={review} />
+            </div>
+        </div>
+    );
+};
+
+type PReviewAndIssuesProps = {
+    review: ReviewHistoryItem | undefined;
+};
+
+const markdownComponents: Components = {
+    code({ className, children, ...props }) {
+        const match = /language-(\w+)/.exec(className || '');
+        const isInline = !match;
+
+        return isInline ? (
+            <code className="px-1.5 py-0.5 bg-neutral-100 rounded text-sm text-neutral-800 font-mono" {...props}>
+                {children}
+            </code>
+        ) : (
+            <SyntaxHighlighter style={vscDarkPlus} language={match[1]} PreTag="div" className="rounded-md my-2 text-sm">
+                {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+        );
+    },
+    p({ children }) {
+        return <p className="mb-3 text-neutral-700 leading-relaxed">{children}</p>;
+    },
+    h1({ children }) {
+        return <h1 className="text-xl font-semibold text-neutral-900 mb-3 mt-4">{children}</h1>;
+    },
+    h2({ children }) {
+        return <h2 className="text-lg font-semibold text-neutral-900 mb-2 mt-3">{children}</h2>;
+    },
+    h3({ children }) {
+        return <h3 className="text-base font-semibold text-neutral-900 mb-2 mt-2">{children}</h3>;
+    },
+    ul({ children }) {
+        return <ul className="list-disc list-inside mb-3 text-neutral-700 space-y-1">{children}</ul>;
+    },
+    ol({ children }) {
+        return <ol className="list-decimal list-inside mb-3 text-neutral-700 space-y-1">{children}</ol>;
+    },
+    li({ children }) {
+        return <li className="text-neutral-700">{children}</li>;
+    },
+    blockquote({ children }) {
+        return (
+            <blockquote className="border-l-4 border-neutral-300 pl-4 my-3 italic text-neutral-600">
+                {children}
+            </blockquote>
+        );
+    },
+    a({ href, children }) {
+        return (
+            <a href={href} className="text-blue-600 hover:underline">
+                {children}
+            </a>
+        );
+    },
+    strong({ children }) {
+        return <strong className="font-semibold text-neutral-900">{children}</strong>;
+    },
+    em({ children }) {
+        return <em className="italic">{children}</em>;
+    },
+};
+
+const SeverityBadge = ({ severity }: { severity: string }) => {
+    const colors: Record<string, string> = {
+        error: 'bg-red-100 text-red-700 border-red-200',
+        warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        info: 'bg-blue-100 text-blue-700 border-blue-200',
+    };
+    const colorClass = colors[severity.toLowerCase()] || colors.info;
+
+    return <span className={`px-2 py-0.5 text-xs font-medium rounded border ${colorClass}`}>{severity}</span>;
+};
+
+const PReviewAndIssues = ({ review }: PReviewAndIssuesProps) => {
+    if (!review) return null;
+
+    return (
+        <div className="">
+            <div className="grid grid-cols-2">
+                <div className="border-r border-neutral-200">
+                    <h3 className="text-sm px-4 py-2 font-semibold text-neutral-900 mb-2 pb-2 border-b border-neutral-200">
+                        PR Review
+                    </h3>
+                    <div className="text-sm overflow-auto px-4 max-h-[400px]">
+                        <ReactMarkdown components={markdownComponents}>
+                            {review.review || 'No review available'}
+                        </ReactMarkdown>
+                    </div>
+                </div>
+
+                <div className="">
+                    <h3 className="text-sm px-4 py-2 font-semibold text-neutral-900 mb-2 pb-2 border-b border-neutral-200">
+                        PR Issues ({review.issues?.length || 0})
+                    </h3>
+                    <div className="text-sm px-4 overflow-auto max-h-[400px] space-y-3">
+                        {review.issues && review.issues.length > 0 ? (
+                            review.issues.map((issue, index) => (
+                                <div key={index} className="border border-neutral-200 rounded p-2 bg-neutral-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-mono text-neutral-600">
+                                            {issue.file}:{issue.line}
+                                        </span>
+                                        <SeverityBadge severity={issue.severity} />
+                                    </div>
+                                    <p className="text-neutral-700 mb-2">{issue.description}</p>
+                                    {issue.diff.oldCode && (
+                                        <div className="mb-2">
+                                            <p className="text-xs text-neutral-500 mb-1">Old Code:</p>
+                                            <SyntaxHighlighter
+                                                style={vscDarkPlus}
+                                                language="typescript"
+                                                PreTag="div"
+                                                className="rounded text-xs"
+                                            >
+                                                {issue.diff.oldCode}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                    )}
+                                    {issue.diff.newCode && (
+                                        <div>
+                                            <p className="text-xs text-neutral-500 mb-1">New Code:</p>
+                                            <SyntaxHighlighter
+                                                style={vscDarkPlus}
+                                                language="typescript"
+                                                PreTag="div"
+                                                className="rounded text-xs"
+                                            >
+                                                {issue.diff.newCode}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-neutral-500">No issues found</p>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
