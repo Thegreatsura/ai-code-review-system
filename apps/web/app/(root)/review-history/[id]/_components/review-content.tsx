@@ -1,12 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, Expand } from 'lucide-react';
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react';
 import type { Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { ReviewHistoryItem } from '@/lib/review';
 import { fetchReviewById } from '@/lib/review';
 import type { ReviewEvent } from '@/lib/use-review-events';
@@ -214,10 +215,27 @@ const PReviewAndIssues = ({ review }: PReviewAndIssuesProps) => {
         <div className="">
             <div className="grid grid-cols-2">
                 <div className="border-r border-neutral-200">
-                    <h3 className="text-sm px-4 py-2 font-semibold text-neutral-900 mb-2 pb-2 border-b border-neutral-200">
-                        PR Review
-                    </h3>
-                    <div className="text-sm overflow-auto px-4 max-h-[400px]">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200">
+                        <h3 className="text-sm font-semibold text-neutral-900">PR Review</h3>
+                        <Dialog>
+                            <DialogTrigger>
+                                <button className="rounded p-1 hover:bg-neutral-200/50 cursor-pointer text-black">
+                                    <Expand size={13} />
+                                </button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl max-h-[700px] max-w-[700px] min-w-[700px] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle className="font-mono text-sm font-medium px-4">PR Review</DialogTitle>
+                                </DialogHeader>
+                                <div className="text-sm overflow-y-scroll max-h-[600px] px-4">
+                                    <ReactMarkdown components={markdownComponents}>
+                                        {review.review || 'No review available'}
+                                    </ReactMarkdown>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                    <div className="text-sm overflow-auto px-4 max-h-100 font-mono">
                         <ReactMarkdown components={markdownComponents}>
                             {review.review || 'No review available'}
                         </ReactMarkdown>
