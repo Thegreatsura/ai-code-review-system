@@ -106,7 +106,7 @@ const ReviewHistoryPage = () => {
             <div className="px-6 py-6 w-full max-w-7xl mx-auto">
                 <div className="mb-6 w-full flex items-center gap-2">
                     <div className="w-full border border-neutral-200 px-2 py-2 focus-within:bg-neutral-100 transition-colors ease-in-out duration-200 flex items-center gap-2 rounded-md">
-                        <Search className="text-neutral-400" size={14} />
+                        <Search size={14} />
                         <input
                             className="w-full outline-none placeholder:text-neutral-400 text-xs font-medium border-0 bg-transparent"
                             placeholder="Search Projects..."
@@ -161,14 +161,14 @@ const ReviewHistoryPage = () => {
                                                     onClick={() => navigateTo('repos', 1)}
                                                     className="flex items-center gap-2 px-4 py-2 hover:bg-neutral-100 font-medium font-mono transition-colors text-sm text-neutral-800"
                                                 >
-                                                    <BookMarked size={14} className="text-neutral-400" />
+                                                    <BookMarked size={14} />
                                                     Repository
                                                 </button>
                                                 <button
                                                     onClick={() => navigateTo('status', 1)}
                                                     className="flex items-center gap-2 px-4 py-2 hover:bg-neutral-100 font-medium font-mono transition-colors text-sm text-neutral-800"
                                                 >
-                                                    <Activity size={14} className="text-neutral-400" />
+                                                    <Activity size={14} />
                                                     Status
                                                 </button>
 
