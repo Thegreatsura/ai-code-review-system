@@ -92,20 +92,22 @@ export const ReviewContent = ({ id }: Props) => {
 
                 <div className="grid grid-cols-2 border-b border-neutral-200">
                     <div className="border-r border-neutral-200 flex flex-col">
-                        <MemoizedReviewInfo
-                            prNumber={review?.prNumber ?? id}
-                            repositoryFullName={review?.repository?.fullName ?? 'Unknown'}
-                            totalMs={totalMs}
-                            queuedAt={queuedAt}
-                            startedAt={startedAt}
-                            prUrl={review?.prUrl}
-                        />
+                        <div className="h-[141px] border-b border-neutral-200 flex flex-col justify-between">
+                            <MemoizedReviewInfo
+                                prNumber={review?.prNumber ?? id}
+                                repositoryFullName={review?.repository?.fullName ?? 'Unknown'}
+                                totalMs={totalMs}
+                                queuedAt={queuedAt}
+                                startedAt={startedAt}
+                                prUrl={review?.prUrl}
+                            />
 
-                        <div className="border-b border-neutral-200 px-2.5 py-2">
-                            <button className="flex items-center gap-2 px-1.5 cursor-pointer w-fit text-black">
-                                <span className="text-black text-sm font-medium">Trace</span>
-                                <ArrowDown size={14} />
-                            </button>
+                            <div className="px-2.5 py-2">
+                                <button className="flex items-center gap-2 px-1.5 cursor-pointer w-fit text-black">
+                                    <span className="text-black text-sm font-medium">Trace</span>
+                                    <ArrowDown size={14} />
+                                </button>
+                            </div>
                         </div>
 
                         <Suspense fallback={<EventListSkeleton />}>
