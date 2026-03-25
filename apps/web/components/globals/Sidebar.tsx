@@ -25,13 +25,13 @@ export function Sidebar() {
             className="flex flex-col h-full shrink-0"
             style={{
                 width: 268,
-                background: '#0e0e10',
-                borderRight: '1px solid #1e1e22',
+                background: '#ffffff',
+                borderRight: '1px solid #e4e4e7',
             }}
         >
             <div
                 className="flex items-center gap-2 px-4 py-3"
-                style={{ borderBottom: '1px solid #1e1e22', height: 52 }}
+                style={{ borderBottom: '1px solid #e4e4e7', height: 52 }}
             >
                 <div
                     className="flex items-center justify-center rounded"
@@ -48,15 +48,15 @@ export function Sidebar() {
                 >
                     AI
                 </div>
-                <span className="flex-1 text-sm font-semibold" style={{ color: '#e8e8ea' }}>
+                <span className="flex-1 text-sm font-semibold" style={{ color: '#18181b' }}>
                     {user?.name}
                 </span>
                 <span
                     className="text-xs font-semibold px-1.5 py-0.5 rounded"
                     style={{
-                        background: '#1e1e22',
-                        color: '#a0a0a8',
-                        border: '1px solid #2e2e34',
+                        background: '#f4f4f5',
+                        color: '#71717a',
+                        border: '1px solid #e4e4e7',
                         fontSize: 10,
                     }}
                 >
@@ -73,8 +73,8 @@ export function Sidebar() {
                             href={`/${route}`}
                             className="flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm mb-0.5 transition-all"
                             style={{
-                                background: active ? '#1a1a1f' : 'transparent',
-                                color: active ? '#e8e8ea' : '#808088',
+                                background: active ? '#f4f4f5' : 'transparent',
+                                color: active ? '#18181b' : '#71717a',
                                 fontWeight: active ? 500 : 400,
                             }}
                         >
@@ -89,21 +89,21 @@ export function Sidebar() {
                 <div
                     className="rounded-lg p-3"
                     style={{
-                        background: '#13131a',
-                        border: '1px solid #1e1e28',
+                        background: '#fafafa',
+                        border: '1px solid #e4e4e7',
                     }}
                 >
                     <div className="flex items-start gap-2">
                         <Rocket size={14} style={{ color: '#ff6240', marginTop: 1, flexShrink: 0 }} />
                         <div>
-                            <p className="text-xs mb-1" style={{ color: '#c0c0c8' }}>
+                            <p className="text-xs mb-1" style={{ color: '#3f3f46' }}>
                                 Get started with <span style={{ color: '#ff6240', fontWeight: 600 }}>AI Review</span>
                             </p>
-                            <p className="text-xs" style={{ color: '#606068' }}>
-                                <span style={{ color: '#808088' }}>Up Next:</span> Checkout your first AI review
+                            <p className="text-xs" style={{ color: '#a1a1aa' }}>
+                                <span style={{ color: '#71717a' }}>Up Next:</span> Checkout your first AI review
                             </p>
                         </div>
-                        <ChevronRight size={13} style={{ color: '#606068', marginTop: 1, flexShrink: 0 }} />
+                        <ChevronRight size={13} style={{ color: '#a1a1aa', marginTop: 1, flexShrink: 0 }} />
                     </div>
                 </div>
             </div>

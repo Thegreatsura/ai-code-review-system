@@ -3,11 +3,10 @@
 import { ArrowRight, Calendar, ExternalLink, FileCode2, Github, GitPullRequest, Terminal } from 'lucide-react';
 import Link from 'next/link';
 import { type ComponentPropsWithoutRef, type ReactNode, useState } from 'react';
-import ReactMarkdown, { type Components } from 'react-markdown';
+import type { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import remarkGfm from 'remark-gfm';
-import type { IssueWithMetadata, ReviewHistoryItem } from '@/lib/review';
+import type { ReviewHistoryItem } from '@/lib/review';
 import { cn } from '@/lib/utils';
 
 type MarkdownComponentProps = {
@@ -28,19 +27,19 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
         h2: ({ children }: MarkdownComponentProps) => (
             <div className="flex items-center gap-2 mb-4 mt-8 first:mt-0">
                 <Terminal size={14} className="text-orange-400" />
-                <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-neutral-200 font-mono">
+                <h2 className="text-[13px] font-bold uppercase tracking-[0.15em] text-neutral-800 font-mono">
                     {children}
                 </h2>
             </div>
         ),
         h3: ({ children }: MarkdownComponentProps) => (
-            <h3 className="text-sm font-semibold text-neutral-100 mt-6 mb-2 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-neutral-900 mt-6 mb-2 flex items-center gap-2">
                 <span className="w-1 h-4 bg-orange-500/50 rounded-full" />
                 {children}
             </h3>
         ),
         p: ({ children }: MarkdownComponentProps) => (
-            <p className="text-[14px] font-mono leading-relaxed text-neutral-400 mb-4 selection:bg-orange-500/30 break-words">
+            <p className="text-[14px] font-mono leading-relaxed text-neutral-600 mb-4 selection:bg-orange-500/30 break-words">
                 {children}
             </p>
         ),
@@ -50,17 +49,17 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
         code({ node, inline, className, children, ...restProps }: CodeComponentProps) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
-                <div className="my-6 rounded-lg bg-black border border-neutral-800 overflow-x-auto min-w-0">
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800 sticky left-0">
+                <div className="my-6 rounded-lg bg-neutral-50 border border-neutral-200 overflow-x-auto min-w-0">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-200 sticky left-0">
                         <div className="flex items-center gap-2">
-                            <FileCode2 size={12} className="text-neutral-500" />
-                            <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
+                            <FileCode2 size={12} className="text-neutral-400" />
+                            <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-widest">
                                 {match[1]}
                             </span>
                         </div>
                         <div className="flex gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-neutral-800" />
-                            <div className="w-2 h-2 rounded-full bg-neutral-800" />
+                            <div className="w-2 h-2 rounded-full bg-neutral-200" />
+                            <div className="w-2 h-2 rounded-full bg-neutral-200" />
                         </div>
                     </div>
                     <SyntaxHighlighter
@@ -83,7 +82,7 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
                 </div>
             ) : (
                 <code
-                    className="px-1.5 py-0.5 rounded bg-neutral-800 text-orange-300 text-[13px] font-mono break-all"
+                    className="px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 text-[13px] font-mono break-all"
                     {...restProps}
                 >
                     {children}
@@ -93,7 +92,7 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
         ul: ({ children }: MarkdownComponentProps) => <ul className="space-y-2 mb-6 ml-4">{children}</ul>,
 
         li: ({ children }: MarkdownComponentProps) => (
-            <li className="flex gap-3 text-sm text-neutral-400">
+            <li className="flex gap-3 text-sm text-neutral-600">
                 <ArrowRight size={14} className="text-orange-500/50 mt-1 shrink-0" />
                 <span className="font-mono min-w-0 flex-1">{children}</span>
             </li>
@@ -114,25 +113,25 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
             <div
                 onClick={() => setOpen(!open)}
                 className={cn(
-                    'cursor-pointer transition-all shadow-[0px_0.75px_0px_0px_rgba(255,252,252,0.3)_inset] rounded-t-lg ease-in-out duration-200 border border-black gap-3 px-3 py-4 bg-[#292929]',
+                    'cursor-pointer transition-all shadow-[0px_0.75px_0px_0px_rgba(0,0,0,0.08)_inset] rounded-t-lg ease-in-out duration-200 border border-neutral-200 gap-3 px-3 py-4 bg-white',
                 )}
             >
                 <div className="flex flex-wrap items-center justify-between gap-4 px-1">
                     <div className="flex items-center gap-4 min-w-0">
-                        <div className="flex items-center gap-2 text-neutral-400 shrink-0">
+                        <div className="flex items-center gap-2 text-neutral-500 shrink-0">
                             <Github size={14} />
                             <span className="text-xs font-mono">{review.repository.fullName}</span>
                         </div>
-                        <span className="text-neutral-700 shrink-0">/</span>
+                        <span className="text-neutral-300 shrink-0">/</span>
                         <div className="flex items-center gap-2 min-w-0">
                             <GitPullRequest size={14} className="text-orange-500 shrink-0" />
-                            <span className="text-xs font-medium text-neutral-200 font-mono truncate">
+                            <span className="text-xs font-medium text-neutral-800 font-mono truncate">
                                 PR #{review.prNumber}: {review.prTitle}
                             </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 text-[11px] font-mono text-neutral-500">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-black bg-neutral-900/50">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-neutral-200 bg-neutral-50">
                             <div
                                 className={cn(
                                     'w-1.5 h-1.5 rounded-full',
@@ -147,25 +146,24 @@ export const Review = ({ review }: { review: ReviewHistoryItem }) => {
                         </span>
                     </div>
                 </div>
-        </div>
-        <div className=' px-3 py-4 bg-[#292929] border border-black border-t-0 rounded-b-lg'>
-
-            <div className="flex justify-between items-center">
-                <Link
-                    href={`/review-history/${review.id}`}
-                    className="flex items-center gap-2 text-[11px] font-mono text-neutral-500 hover:text-white transition-colors uppercase tracking-widest"
-                >
-                    View Details <ArrowRight size={12} />
-                </Link>
-                <a
-                    href={review.prUrl}
-                    target="_blank"
-                    className="flex items-center gap-2 text-[11px] font-mono text-neutral-500 hover:text-white transition-colors uppercase tracking-widest"
-                >
-                    Source Context <ExternalLink size={12} />
-                </a>
             </div>
-        </div>
+            <div className="px-3 py-4 bg-white border border-neutral-200 border-t-0 rounded-b-lg">
+                <div className="flex justify-between items-center">
+                    <Link
+                        href={`/review-history/${review.id}`}
+                        className="flex items-center gap-2 text-[11px] font-mono text-neutral-500 hover:text-neutral-900 transition-colors uppercase tracking-widest"
+                    >
+                        View Details <ArrowRight size={12} />
+                    </Link>
+                    <a
+                        href={review.prUrl}
+                        target="_blank"
+                        className="flex items-center gap-2 text-[11px] font-mono text-neutral-500 hover:text-neutral-900 transition-colors uppercase tracking-widest"
+                    >
+                        Source Context <ExternalLink size={12} />
+                    </a>
+                </div>
+            </div>
         </section>
     );
 };
