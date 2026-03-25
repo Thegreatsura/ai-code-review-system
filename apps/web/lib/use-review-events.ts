@@ -13,6 +13,7 @@ export interface ReviewEvent {
     message: string;
     details?: Record<string, unknown>;
     timestamp?: string;
+    durationMs?: number;
 }
 
 const STREAMING_URL = process.env.NEXT_PUBLIC_STREAMING_URL || 'http://localhost:5002';
