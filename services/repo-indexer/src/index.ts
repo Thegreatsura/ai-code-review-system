@@ -4,13 +4,27 @@ import prisma from '@repo/db';
 import { logger } from '@repo/logger';
 import { addJob, createEventPublisher, createQueue, createWorker } from '@repo/queue';
 import { Octokit } from 'octokit';
-import { indexCodebase } from './lib/embedding.js';
-import { type FileContent, fetchRepositoryFiles, type RepoDetails } from './lib/github.js';
+import { indexChangedFiles, indexCodebase } from './lib/embedding.js';
+import { type FileContent, fetchChangedFiles, fetchRepositoryFiles, type RepoDetails } from './lib/github.js';
 import { pineconeIndex } from './lib/pinecone.js';
 
 const QUEUE_NAME = 'repo-index';
 const CONTEXT_QUEUE = 'pr-context';
 const AI_REVIEW_QUEUE = 'pr-ai-review';
+
+interface RepoIndexMessage {
+    repoId: string;
+    branchId: string;
+    jobId: string;
+    owner: string;
+    repo: string;
+    url: string;
+    userId: string;
+    installationId: string;
+    retryCount?: number;
+    baseCommitSha?: string;
+    headCommitSha?: string;
+}
 
 interface PRContextMessage {
     query: string;
@@ -46,22 +60,6 @@ async function getAccessToken(userId: string): Promise<string | null> {
         logger.error({ error, userId }, 'Failed to fetch access token from database');
         return null;
     }
-}
-
-async function indexRepository(repoDetails: RepoDetails, accessToken: string): Promise<void> {
-    const octokit = new Octokit({ auth: accessToken });
-
-    const files = await fetchRepositoryFiles(octokit, repoDetails, async (file: FileContent) => {
-        logger.info({ path: file.path, size: file.size }, 'Processing file');
-    });
-
-    logger.info({ repoDetails, totalFiles: files.length }, 'Fetched all files from repository');
-
-    await indexCodebase(files, {
-        repoId: repoDetails.repoId,
-        owner: repoDetails.owner,
-        repo: repoDetails.repo,
-    });
 }
 
 async function retrieveContext(query: string, repoId: string, topK: number = 5) {
@@ -149,22 +147,167 @@ async function startContextWorker(): Promise<void> {
 
 async function startWorker(): Promise<void> {
     repoIndexWorker = createWorker(QUEUE_NAME, async (job) => {
-        const repoDetailsWithUser = job.data as RepoDetails & { userId?: string };
-        const { userId, ...repoDetails } = repoDetailsWithUser;
-        logger.info({ repoDetails, userId }, 'Received index-repo event');
+        const message = job.data as RepoIndexMessage;
+        const { repoId, branchId, jobId, userId, owner, repo, url, baseCommitSha, headCommitSha } = message;
+        logger.info({ repoId, branchId, jobId, userId, baseCommitSha, headCommitSha }, 'Received index-repo event');
 
-        if (!userId) {
-            logger.error('No userId provided in message');
-            return;
+        await prisma.repoIndexingJob.update({
+            where: { id: jobId },
+            data: { status: 'processing', lastAttemptAt: new Date() },
+        });
+
+        await prisma.repositoryBranch.update({
+            where: { id: branchId },
+            data: { indexingStatus: 'indexing' },
+        });
+
+        await prisma.indexingEvent.create({
+            data: {
+                jobId,
+                type: 'JOB_STARTED',
+                status: 'success',
+                message: 'Indexing job started',
+            },
+        });
+
+        try {
+            const accessToken = await getAccessToken(userId);
+            if (!accessToken) {
+                throw new Error('No GitHub access token found for user');
+            }
+
+            const octokit = new Octokit({ auth: accessToken });
+            let indexedCount = 0;
+            let removedCount = 0;
+
+            if (baseCommitSha && headCommitSha && baseCommitSha !== headCommitSha) {
+                logger.info({ repoId, branchId, baseCommitSha, headCommitSha }, 'Using diff-based indexing');
+
+                const { changedFiles, isFullIndex } = await fetchChangedFiles(
+                    octokit,
+                    owner,
+                    repo,
+                    baseCommitSha,
+                    headCommitSha,
+                );
+
+                if (!isFullIndex && changedFiles.length > 0) {
+                    const result = await indexChangedFiles(changedFiles, {
+                        repoId,
+                        branchId,
+                        jobId,
+                        owner,
+                        repo,
+                    });
+                    indexedCount = result.indexedCount;
+                    removedCount = result.removedCount;
+                } else {
+                    logger.info({ repoId, branchId }, 'Falling back to full indexing');
+                    const repoDetails: RepoDetails = {
+                        repoId,
+                        owner,
+                        repo,
+                        url,
+                    };
+
+                    const files = await fetchRepositoryFiles(octokit, repoDetails, async (file) => {
+                        logger.info({ path: file.path, size: file.size }, 'Processing file');
+                    });
+
+                    logger.info({ repoId, branchId, totalFiles: files.length }, 'Fetched all files from repository');
+
+                    indexedCount = await indexCodebase(files, {
+                        repoId,
+                        branchId,
+                        jobId,
+                        owner,
+                        repo,
+                    });
+                }
+            } else {
+                logger.info({ repoId, branchId }, 'No diff info, using full indexing');
+                const repoDetails: RepoDetails = {
+                    repoId,
+                    owner,
+                    repo,
+                    url,
+                };
+
+                const files = await fetchRepositoryFiles(octokit, repoDetails, async (file) => {
+                    logger.info({ path: file.path, size: file.size }, 'Processing file');
+                });
+
+                logger.info({ repoId, branchId, totalFiles: files.length }, 'Fetched all files from repository');
+
+                indexedCount = await indexCodebase(files, {
+                    repoId,
+                    branchId,
+                    jobId,
+                    owner,
+                    repo,
+                });
+            }
+
+            await prisma.repoIndexingJob.update({
+                where: { id: jobId },
+                data: { status: 'completed' },
+            });
+
+            await prisma.repositoryBranch.update({
+                where: { id: branchId },
+                data: {
+                    indexingStatus: 'indexed',
+                    lastIndexedAt: new Date(),
+                },
+            });
+
+            await prisma.indexingEvent.create({
+                data: {
+                    jobId,
+                    type: 'JOB_COMPLETED',
+                    status: 'success',
+                    message: `Indexing completed. ${indexedCount} files indexed, ${removedCount} removed.`,
+                    details: JSON.stringify({ indexedCount, removedCount }),
+                },
+            });
+
+            logger.info({ repoId, branchId, jobId, indexedCount, removedCount }, 'Indexing job completed');
+        } catch (error) {
+            logger.error({ error, repoId, branchId, jobId }, 'Indexing job failed');
+
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const isRetryable = errorMessage.includes('rate limit') || errorMessage.includes('quota');
+            const retryCount = message.retryCount ?? 0;
+
+            await prisma.repoIndexingJob.update({
+                where: { id: jobId },
+                data: {
+                    status: isRetryable && retryCount < 3 ? 'pending' : 'failed',
+                    errorMessage,
+                    lastAttemptAt: new Date(),
+                    nextRetryAt: isRetryable ? new Date(Date.now() + 60000 * 2 ** retryCount) : null,
+                },
+            });
+
+            await prisma.repositoryBranch.update({
+                where: { id: branchId },
+                data: { indexingStatus: 'failed' },
+            });
+
+            await prisma.indexingEvent.create({
+                data: {
+                    jobId,
+                    type: 'JOB_FAILED',
+                    status: 'failed',
+                    message: errorMessage,
+                    details: JSON.stringify({ isRetryable }),
+                },
+            });
+
+            if (isRetryable) {
+                throw error;
+            }
         }
-
-        const accessToken = await getAccessToken(userId);
-        if (!accessToken) {
-            logger.error({ userId }, 'No GitHub access token found for user');
-            return;
-        }
-
-        await indexRepository(repoDetails, accessToken);
     });
 
     logger.info({ queue: QUEUE_NAME }, 'Worker started');

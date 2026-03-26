@@ -243,7 +243,7 @@ const PReviewAndIssues = ({ review }: PReviewAndIssuesProps) => {
                 </div>
 
                 <div className="">
-                    <h3 className="text-sm px-4 py-2 font-semibold text-neutral-900 mb-2 pb-2 border-b border-neutral-200">
+                    <h3 className="text-sm px-4 py-2 h-[41px] font-semibold text-neutral-900 mb-2 pb-2 border-b border-neutral-200">
                         PR Issues ({review.issues?.length || 0})
                     </h3>
                     <div className="text-sm px-4 overflow-auto max-h-[400px] space-y-3">

@@ -108,6 +108,9 @@ model Repository {
   installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
 
   reviews        Review[]
+  branches       RepositoryBranch[]
+  indexingJobs   RepoIndexingJob[]
+  files          IndexedFile[]
 
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -115,6 +118,114 @@ model Repository {
   @@index([userId])
   @@index([installationId])
   @@map("repository")
+}
+
+model RepositoryBranch {
+  id              String   @id @default(cuid())
+  repositoryId    String
+  name            String
+  latestCommitSha String
+  isDefault       Boolean  @default(false)
+
+  lastIndexedAt   DateTime?
+  indexingStatus  String?
+
+  repository      Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  indexingJobs    RepoIndexingJob[]
+  files           IndexedFile[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([repositoryId, name])
+  @@index([repositoryId])
+}
+
+model RepoIndexingJob {
+  id             String   @id @default(cuid())
+  repositoryId   String
+  branchId       String
+
+  commitSha      String
+  baseCommitSha  String?
+  headCommitSha  String?
+
+  status         String   @default("pending")
+
+  retryCount     Int      @default(0)
+  maxRetries     Int      @default(3)
+
+  errorMessage   String?
+  lastAttemptAt  DateTime?
+  nextRetryAt    DateTime?
+
+  repository     Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  branch         RepositoryBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  events         IndexingEvent[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([repositoryId])
+  @@index([branchId])
+  @@index([status, nextRetryAt])
+}
+
+model IndexedFile {
+  id            String   @id @default(cuid())
+  repositoryId  String
+  branchId      String
+
+  path          String
+  hash          String
+  size          Int?
+  language      String?
+
+  status        String   @default("indexed")
+  lastIndexedAt DateTime
+
+  repository    Repository       @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  branch        RepositoryBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  chunks        FileChunk[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([repositoryId, branchId, path])
+  @@index([repositoryId, branchId])
+}
+
+model FileChunk {
+  id        String   @id @default(cuid())
+  fileId    String
+
+  content   String
+  embedding Bytes
+
+  startLine Int
+  endLine   Int
+
+  file      IndexedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([fileId])
+}
+
+model IndexingEvent {
+  id        String   @id @default(cuid())
+  jobId     String
+
+  type      String
+  status    String
+  message   String
+  details   String?
+
+  job       RepoIndexingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
 }
 
 model Review {
