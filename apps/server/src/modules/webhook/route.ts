@@ -373,23 +373,28 @@ router.post('/github', async (req, res) => {
 
             const branch = repositoryRecord.branches.find((b) => b.name === branchName);
 
-            if (!branch) {
+            let actualBranch = branch;
+            if (!actualBranch) {
                 logger.warn({ fullName, branch: branchName }, 'Branch not found in database, creating new');
-            }
-
-            const branchId = branch?.id ?? '';
-
-            if (branchId) {
-                await prisma.repositoryBranch.update({
-                    where: { id: branchId },
-                    data: { latestCommitSha: newCommitSha },
+                actualBranch = await prisma.repositoryBranch.create({
+                    data: {
+                        repositoryId: repositoryRecord.id,
+                        name: branchName,
+                        latestCommitSha: newCommitSha,
+                        isDefault: false,
+                    },
                 });
             }
+
+            await prisma.repositoryBranch.update({
+                where: { id: actualBranch.id },
+                data: { latestCommitSha: newCommitSha },
+            });
 
             const createdJob = await prisma.repoIndexingJob.create({
                 data: {
                     repositoryId: repositoryRecord.id,
-                    branchId: branchId || '',
+                    branchId: actualBranch.id,
                     commitSha: newCommitSha,
                     status: 'pending',
                 },
@@ -397,7 +402,7 @@ router.post('/github', async (req, res) => {
 
             await addJob(repoIndexQueue, 'repo-index', {
                 repoId: repositoryRecord.id,
-                branchId: branchId,
+                branchId: actualBranch.id,
                 jobId: createdJob.id,
                 owner: repositoryRecord.owner,
                 repo: repositoryRecord.name,
