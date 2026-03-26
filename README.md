@@ -26,15 +26,53 @@ sequenceDiagram
 
     loop For each repository
         WS->>DB: Upsert repository
+        WS->>DB: Upsert RepositoryBranch (default branch)
+        WS->>DB: Create RepoIndexingJob (status: pending)
     end
 
-    WS->>RI: Add job to repo-index queue
+    WS->>RI: Add job to repo-index queue (with branchId, jobId)
+    RI->>DB: Update job status to "processing"
+    RI->>DB: Update branch indexingStatus to "indexing"
     RI->>GitHub: Fetch repository files
-    RI->>RI: Generate embeddings
-    RI->>RI: Store in vector database
+    RI->>RI: Filter excluded files (package.json, images, binaries, etc.)
+    RI->>RI: Compute file hash (SHA-256)
+    RI->>RI: Chunk large files (500 lines, 50 overlap)
+    RI->>DB: Create/update IndexedFile records
+    RI->>DB: Create FileChunk records with embeddings
+    RI->>RI: Store vectors in Pinecone
+    RI->>DB: Update job status to "completed"
+    RI->>DB: Update branch indexingStatus to "indexed"
 ```
 
-### 2. When a User Raises a Pull Request
+### 2. Repository Indexing Flow (Detailed)
+
+```mermaid
+flowchart TD
+    A[Start Indexing Job] --> B{Job already processing?}
+    B -->|Yes| C[Skip - avoid duplicates]
+    B -->|No| D[Update job status: processing]
+    D --> E[Update branch indexingStatus: indexing]
+    E --> F[Fetch files from GitHub]
+    F --> G[Filter excluded files]
+    G --> H{For each file}
+    H --> I{File exists in DB?}
+    I -->|Yes| J{Hash changed?}
+    J -->|No| K[Skip - file unchanged]
+    J -->|Yes| L[Delete old chunks, re-index]
+    I -->|No| M[Create new IndexedFile]
+    M --> N[Chunk file content]
+    N --> O[Generate embeddings]
+    O --> P[Create FileChunk records]
+    P --> Q[Upsert vectors to Pinecone]
+    Q --> R{More files?}
+    R -->|Yes| H
+    R -->|No| S{Any failures?}
+    S -->|Yes| T[Update job status: pending, schedule retry]
+    S -->|No| U[Update job status: completed]
+    U --> V[Update branch indexingStatus: indexed]
+```
+
+### 3. When a User Raises a Pull Request
 
 ```mermaid
 sequenceDiagram
@@ -71,6 +109,27 @@ sequenceDiagram
     PP->>GitHub: Post inline comments for each issue
     PP->>GitHub: Post summary comment
 ```
+
+## Indexing Features
+
+### File Filtering
+The repo-indexer automatically excludes:
+- **Package files**: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
+- **Binary assets**: Images (`.png`, `.jpg`, `.gif`, `.svg`, `.webp`), Videos, PDFs
+- **Build artifacts**: `node_modules`, `dist`, `build`, `.next`, `.nuxt`
+- **Minified files**: `.min.js`, `.min.css`, `.map`
+- **System files**: `.DS_Store`, `Thumbs.db`
+
+### Chunking Strategy
+- **Chunk size**: 500 lines
+- **Overlap**: 50 lines (for context continuity)
+- Each chunk gets its own embedding stored in `FileChunk` table
+
+### Retry Mechanism
+- **Retryable errors**: Rate limits, quota exceeded
+- **Max retries**: 3
+- **Backoff**: Exponential (60s, 120s, 240s)
+- Failed jobs are marked as `pending` and retried automatically
 
 ## What's inside?
 

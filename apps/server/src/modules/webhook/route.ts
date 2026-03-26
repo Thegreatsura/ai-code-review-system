@@ -24,10 +24,10 @@ function verifySignature(req: express.Request): boolean {
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
 }
 
-async function upsertRepositories(repos: any[], installationRecordId: string, userId: string) {
+async function upsertRepositories(repos: any[], installationRecordId: string, userId: string, installationId: string) {
     const results = await Promise.all(
-        repos.map((repo: any) =>
-            prisma.repository.upsert({
+        repos.map(async (repo: any) => {
+            const repository = await prisma.repository.upsert({
                 where: { githubId: String(repo.id) },
                 update: {
                     name: repo.name,
@@ -47,28 +47,54 @@ async function upsertRepositories(repos: any[], installationRecordId: string, us
                     installationId: installationRecordId,
                     userId,
                 },
-            }),
-        ),
-    );
+            });
 
-    const installationRecord = await prisma.installation.findUnique({
-        where: { id: installationRecordId },
-    });
+            const branch = await prisma.repositoryBranch.upsert({
+                where: {
+                    repositoryId_name: {
+                        repositoryId: repository.id,
+                        name: repo.default_branch || 'main',
+                    },
+                },
+                update: {},
+                create: {
+                    repositoryId: repository.id,
+                    name: repo.default_branch || 'main',
+                    latestCommitSha: '',
+                    isDefault: true,
+                },
+            });
 
-    if (installationRecord) {
-        await Promise.all(
-            results.map((repository: any) =>
-                addJob(repoIndexQueue, 'repo-index', {
+            const existingJob = await prisma.repoIndexingJob.findFirst({
+                where: { branchId: branch.id },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            if (!existingJob || existingJob.status !== 'processing') {
+                const indexingJob = await prisma.repoIndexingJob.create({
+                    data: {
+                        repositoryId: repository.id,
+                        branchId: branch.id,
+                        commitSha: '',
+                        status: 'pending',
+                    },
+                });
+
+                await addJob(repoIndexQueue, 'repo-index', {
                     repoId: repository.id,
+                    branchId: branch.id,
+                    jobId: indexingJob.id,
                     owner: repository.owner,
                     repo: repository.name,
                     url: repository.url,
                     userId: repository.userId,
-                    installationId: installationRecord.installationId,
-                }),
-            ),
-        );
-    }
+                    installationId,
+                });
+            }
+
+            return repository;
+        }),
+    );
 
     return results;
 }
@@ -114,7 +140,12 @@ router.post('/github', async (req, res) => {
 
                 const repositories: any[] = req.body.repositories ?? [];
                 if (repositories.length) {
-                    await upsertRepositories(repositories, installationRecord.id, account.userId);
+                    await upsertRepositories(
+                        repositories,
+                        installationRecord.id,
+                        account.userId,
+                        installation.installationId,
+                    );
                     logger.info(
                         { count: repositories.length, installationId: installation.id },
                         'Initial repositories synced',
@@ -162,7 +193,12 @@ router.post('/github', async (req, res) => {
         }
 
         if (repositories_added?.length) {
-            await upsertRepositories(repositories_added, installationRecord.id, installationRecord.userId);
+            await upsertRepositories(
+                repositories_added,
+                installationRecord.id,
+                installationRecord.userId,
+                installation.id,
+            );
             logger.info({ count: repositories_added.length, installationId: installation.id }, 'Repositories upserted');
         }
 

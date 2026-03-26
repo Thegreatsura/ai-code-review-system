@@ -1,4 +1,5 @@
 import { logger } from '@repo/logger';
+import { createHash } from 'crypto';
 import type { Octokit } from 'octokit';
 
 export interface RepoDetails {
@@ -14,6 +15,7 @@ export interface FileContent {
     sha: string;
     size: number;
     type: 'file' | 'dir';
+    hash?: string;
 }
 
 const EXCLUDED_PATHS = [
@@ -28,19 +30,62 @@ const EXCLUDED_PATHS = [
     '__pycache__',
     '.venv',
     'vendor',
+    'public',
+    'assets',
+    'static',
 ];
 
-const EXCLUDED_EXTENSIONS = ['.lock', '.min.js', '.min.css', '.map'];
+const EXCLUDED_EXTENSIONS = [
+    '.lock',
+    '.min.js',
+    '.min.css',
+    '.map',
+    '.svg',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.ico',
+    '.pdf',
+    '.zip',
+    '.tar',
+    '.gz',
+    '.exe',
+    '.dll',
+    '.so',
+    '.dylib',
+    '.bin',
+    '.wasm',
+];
+
+const EXCLUDED_FILE_NAMES = [
+    'package.json',
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'bun.lockb',
+    '.DS_Store',
+    'Thumbs.db',
+];
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024;
 
 function isExcluded(path: string): boolean {
     const parts = path.split('/');
+    const fileName = parts[parts.length - 1] ?? '';
+    if (EXCLUDED_FILE_NAMES.includes(fileName)) {
+        return true;
+    }
     return EXCLUDED_PATHS.some((excluded) => parts.includes(excluded));
 }
 
 function isExcludedExtension(path: string): boolean {
     return EXCLUDED_EXTENSIONS.some((ext) => path.endsWith(ext));
+}
+
+function computeHash(content: string): string {
+    return createHash('sha256').update(content).digest('hex');
 }
 
 async function fetchAllFiles(
@@ -106,6 +151,7 @@ async function processFile(
             sha: item.sha,
             size: item.size,
             type: 'file',
+            hash: computeHash(content),
         };
 
         allFiles.push(fileData);
