@@ -219,7 +219,7 @@ pnpm dev --filter=ai-review-worker
 ### Todo List - Missing Features
 
 - [ ] **Chat/Conversation** - Chat interface for follow-up questions about code
-- [ ] **Auto-PR description** - Automatically generate PR descriptions
+- [x] **Auto-PR description** - Automatically generate PR descriptions
 - [ ] **Custom review rules** - Configurable rules (security, performance, best practices)
 - [ ] **Accept/Reject UI** - Dashboard to accept AI suggestions directly
 - [ ] **Security-specific scanning** - Dedicated vulnerability detection
