@@ -77,7 +77,8 @@ export const ReviewContent = ({ id }: Props) => {
 
             const startOffset = ((currentTime - startTime) / totalDuration) * 100;
             const durationMs = nextTime - currentTime;
-            const width = Math.max((durationMs / totalDuration) * 100, 2);
+            const rawWidth = (durationMs / totalDuration) * 100;
+            const width = Math.min(Math.max(rawWidth, 2), 100 - startOffset);
 
             return { ...event, startOffset, width, durationMs };
         });
